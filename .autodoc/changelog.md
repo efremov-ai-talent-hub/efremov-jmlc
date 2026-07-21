@@ -1,0 +1,12 @@
+# Changelog
+
+## 2026-07-21 — CI/CD deploy path, hello-world compose, project conventions
+- What:
+  - Deploy path: `.github/workflows/deploy.yml` fires on push to `main` (and `workflow_dispatch`) and runs `infra/github-runner/ci-deploy.sh` on a self-hosted runner under `sudo -u markefremov`. The script checks out the pushed sha detached, then `docker compose pull --ignore-buildable` → `build --pull` → `up -d --remove-orphans`.
+  - `docker-compose.yml` currently holds a single `python:3.12-slim` service printing `Hello World` on a 30s loop — a deliberate placeholder to exercise the deploy pipeline end to end before the real stack lands. Verified locally: `pull`/`build`/`up -d` all succeed, container reports `Up`, log shows the line. `build` is a no-op while nothing declares `build:`.
+  - The mini-lakehouse stack it will replace (MinIO → Iceberg REST → Trino, plus Prefect, LiteLLM with build-time patches, Grafana + mcp-grafana, 10 services) is written and was verified running, but is parked in `git stash` so the deploy could be exercised in isolation.
+  - Project conventions: `CLAUDE.md` at root (rules for agents working here; no lint/format section yet, since the project carries no linters at this stage), this `.autodoc/`, and `.claude/hooks/autodoc-scope.js` wired via `.claude/settings.json` as a `PreToolUse` hook on Bash — it injects the commit list of an outgoing push so a changelog entry covers the whole push rather than the author's last task. `.claude/settings.json` also hard-denies `git reset --hard`, and `.gitignore` gained `CLAUDE.local.md` — both so the corresponding `CLAUDE.md` claims are true rather than aspirational.
+  - `docs/claudeops/` points at the two subagents that carry quality — `code-reviewer` and `autodoc-maintainer`, verbatim copies under `docs/claudeops/agents/` — and names `CLAUDE.md` as the entry point for conventions. The copies are documentation only: agent definitions are registered from `.claude/agents/`, so placing them there would shadow the active ones with a drifting second copy.
+- Why: the deploy had never been run, so proving the runner path works was worth more than shipping the full stack behind it. Adding `CLAUDE.md` also arms the autodoc gate for this repo, which denies any push lacking a changelog entry — hence this file exists from the first push rather than after it.
+- Affects: `.github/workflows/deploy.yml`, `infra/github-runner/ci-deploy.sh`, `docker-compose.yml`, `CLAUDE.md`, `.claude/`, `.autodoc/`, `docs/claudeops/`, `.gitignore`.
+- By: Efremov Mark
