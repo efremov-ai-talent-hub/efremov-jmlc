@@ -1,0 +1,74 @@
+# LiteLLM proxy config.
+#
+# One model group (gigachat-lite) plus the Grafana MCP gateway. All secrets
+# resolve from the environment via `os.environ/<NAME>` — populated from .env
+# (see .env.example). The build-time patches (GigaChat finish_reason, A2A method
+# map, OTEL non-dict guard) are baked into the image via the Dockerfile — see
+# infra/litellm/patches/.
+
+model_list:
+  # ---- GigaChat (Sber) ----
+  # The build-time GigaChat finish_reason patch targets this provider. Disabled
+  # until LITELLM_GIGACHAT_CREDENTIALS is set (the proxy still starts; calls to
+  # gigachat-lite return 401). Upstream API id for the "Lite" tier is the bare
+  # `GigaChat-2` — there is no `GigaChat-2-Lite` (Sber returns 404 for it).
+  # ssl_verify: false matches GIGACHAT_VERIFY_SSL_CERTS=false — GigaChat ships a
+  # Russian Trusted CA chain not in the default bundle.
+  - model_name: gigachat-lite
+    litellm_params:
+      model: gigachat/GigaChat-2
+      api_key: os.environ/GIGACHAT_CREDENTIALS
+      ssl_verify: false
+    model_info: { kind: gigachat-lite }
+
+# ---- MCP gateway ----
+# LiteLLM aggregates external MCP servers and re-exposes them under its own
+# /mcp endpoint. Clients connect to LiteLLM with a virtual key; LiteLLM forwards
+# tool calls to the upstream server. The mcp-grafana container lives on the
+# lakehouse network only (never published to the host).
+mcp_servers:
+  grafana:
+    # Internal address inside the lakehouse network. Transport pinned to `http`
+    # (streamable-http) explicitly — the mcp-grafana container is started with
+    # `-t streamable-http`, so both ends agree on a single transport.
+    url: "http://mcp-grafana:8000/mcp"
+    transport: "http"
+    description: >-
+      Grafana observability MCP — dashboards, and (when datasources are wired
+      up) Prometheus metrics, Loki logs and Tempo traces. Read-only:
+      --disable-write + --disable-alerting.
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 3
+  retry_policy:
+    AuthenticationErrorRetries: 0
+    BadRequestErrorRetries: 0
+    ContentPolicyViolationErrorRetries: 0
+    TimeoutErrorRetries: 2
+    RateLimitErrorRetries: 3
+    InternalServerErrorRetries: 2
+  allowed_fails: 3
+  cooldown_time: 30
+
+litellm_settings:
+  # Drop provider-incompatible params instead of 400'ing.
+  drop_params: true
+  num_workers: 1
+  set_verbose: false
+  telemetry: false
+  cache: false
+  request_timeout: 600
+  # Prometheus exposition on /metrics (no OTEL sink in this mini-project).
+  success_callback: ["prometheus"]
+  failure_callback: ["prometheus"]
+  service_callback: ["prometheus"]
+  require_auth_for_metrics_endpoint: false
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  # Models are config-driven; this file is the source of truth.
+  store_model_in_db: false
+  store_prompts_in_spend_logs: true
+  disable_spend_logs: false

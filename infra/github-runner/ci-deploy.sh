@@ -10,6 +10,14 @@ echo "==> fetch + checkout ${REF}"
 git fetch --prune origin
 git checkout -f --detach "${REF}"
 
+echo "==> .env"
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "created .env from .env.example"
+else
+  echo "keeping existing .env"
+fi
+
 echo "==> pull готовых образов"
 docker compose pull --ignore-buildable
 
