@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-22 — full mini-lakehouse stack replaces the hello-world placeholder
+- What:
+  - `docker-compose.yml` now defines the real stack (12 services): MinIO + one-shot bucket init, an Iceberg REST catalog on its own Postgres + a one-shot `raw` namespace init, Trino (single `iceberg` catalog), Prefect server + Postgres (no deployments), a custom LiteLLM proxy + Postgres, and Grafana + a Grafana MCP server re-exposed through LiteLLM's `/mcp`. Data path MinIO → Iceberg REST → Trino verified end to end (create table, write to MinIO, read back).
+  - Trino reads MinIO creds and the warehouse bucket from the environment (`${ENV:VAR}` in `infra/trino/etc/catalog/iceberg.properties`, passed in by the `trino` service) instead of hardcoded values, so a changed password never skews from what Trino uses.
+  - LiteLLM is a locally-built image: upstream LiteLLM (base pinned to v1.89.3 in `infra/litellm/Dockerfile`) plus three build-time patches — GigaChat `finish_reason`, A2A method map, OTEL non-dict guard. `config.yaml` exposes one model group (`gigachat-lite`) and the Grafana MCP gateway. mcp-grafana needs `-allowed-hosts` because its image enforces a DNS-rebinding Host allowlist.
+  - Runs on the same host as another compose stack, so every `container_name:` was dropped (the project prefix disambiguates) and host ports use the 3xxxx range to avoid collisions.
+  - Every registry image is pinned by digest (`tag@sha256:` where a semver/release tag exists, digest-only otherwise). `restart: unless-stopped` on all long-lived services; the two one-shot init containers stay unset. TLS verification is disabled proxy-wide in LiteLLM because GigaChat — the only upstream — serves a CA chain absent from the default bundle (documented, blast radius limited to it).
+  - `infra/github-runner/ci-deploy.sh` seeds `.env` from `.env.example` when missing (never overwrites), so a fresh clone on the runner doesn't come up with random ports and empty Postgres passwords. `Makefile` wraps the compose workflow; `.env.example` carries working local defaults.
+- Why: the placeholder proved the deploy path; this lands the stack it was standing in for. Config stays `.env`-only (no Ansible) at this stage.
+- Affects: `docker-compose.yml`, `infra/trino/`, `infra/litellm/`, `infra/github-runner/ci-deploy.sh`, `Makefile`, `README.md`, `.env.example`.
+- By: Efremov Mark
+
 ## 2026-07-21 — CI/CD deploy path, hello-world compose, project conventions
 - What:
   - Deploy path: `.github/workflows/deploy.yml` fires on push to `main` (and `workflow_dispatch`) and runs `infra/github-runner/ci-deploy.sh` on a self-hosted runner under `sudo -u markefremov`. The script checks out the pushed sha detached, then `docker compose pull --ignore-buildable` → `build --pull` → `up -d --remove-orphans`.
