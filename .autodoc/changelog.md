@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-22 — fix wrong-arch postgres digest that broke the first real deploy
+- What: the three Postgres services pinned `postgres:15.14-alpine@sha256:2e50ad40…`, which is the **arm64 platform manifest**, not the multi-arch index — the digest was read from `docker inspect RepoDigests` on an arm64 dev machine. On the amd64 runner all three containers crashed on start (exec format error) and went unhealthy within ~0.5s, so every dependent (iceberg-rest, trino, litellm) refused to start and the deploy failed. Re-pinned to the OCI index digest `sha256:64583b3c…` (contains linux/amd64). The other seven pinned images were already correct index/list digests (verified each carries linux/amd64).
+- Why: `RepoDigests` returns the platform-specific digest for OCI-index images, so digests captured on one arch silently break another. Manifest-list/index digests are the portable ones — read them from `docker buildx imagetools inspect <ref> --format '{{.Manifest.Digest}}'`, not from a local `docker inspect`.
+- Affects: `docker-compose.yml` (iceberg-postgres, prefect-postgres, litellm-db).
+- By: Efremov Mark
+
 ## 2026-07-22 — full mini-lakehouse stack replaces the hello-world placeholder
 - What:
   - `docker-compose.yml` now defines the real stack (12 services): MinIO + one-shot bucket init, an Iceberg REST catalog on its own Postgres + a one-shot `raw` namespace init, Trino (single `iceberg` catalog), Prefect server + Postgres (no deployments), a custom LiteLLM proxy + Postgres, and Grafana + a Grafana MCP server re-exposed through LiteLLM's `/mcp`. Data path MinIO → Iceberg REST → Trino verified end to end (create table, write to MinIO, read back).
