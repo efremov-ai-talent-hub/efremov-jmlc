@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git reset --hard*)",
+      "Bash(git -C * reset --hard*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/autodoc-scope.js\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
