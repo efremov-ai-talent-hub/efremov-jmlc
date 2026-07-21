@@ -1,0 +1,16 @@
+name: deploy-jmlc
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, swap]
+    concurrency:
+      group: deploy-jmlc
+      cancel-in-progress: false
+    steps:
+      - name: Reconcile jmlc stack
+        run: sudo -n -H -u markefremov /home/markefremov/efremov-jmlc/infra/github-runner/ci-deploy.sh "${{ github.sha }}"

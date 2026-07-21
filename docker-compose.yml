@@ -1,0 +1,14 @@
+services:
+  hello:
+    image: python:3.12-slim
+    container_name: hello-world
+    restart: unless-stopped
+    command:
+      - python
+      - -u
+      - -c
+      - |
+        import time
+        while True:
+            print("Hello World")
+            time.sleep(30)
