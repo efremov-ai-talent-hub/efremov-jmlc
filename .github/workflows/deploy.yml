@@ -8,6 +8,13 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, swap]
+    # The deploy normally takes well under a minute. Without a bound the GitHub
+    # default of 360 minutes applies, and since this concurrency group does not
+    # cancel in progress, one hung step would block every later deploy for hours.
+    # Per-command bounds inside ci-deploy.sh stay too: the step runs under
+    # `sudo -u markefremov`, and cancelling it does not reliably reap a child
+    # owned by another user.
+    timeout-minutes: 30
     concurrency:
       group: deploy-jmlc
       cancel-in-progress: false

@@ -34,9 +34,32 @@ echo "==> migrations"
 # `docker compose wait <service>` exits with the container's own exit code, so
 # test that directly — its stdout is prose ("container ... exited with status
 # code 0"), not a bare number.
-if ! docker compose wait iceberg-migrate; then
-  echo "!! migrations failed"
-  docker compose logs --no-log-prefix iceberg-migrate | tail -40
+#
+# Bounded, because `wait` has no timeout of its own and the job's concurrency
+# group does not cancel in progress: one hung wait blocks every later deploy
+# until someone notices. 600s is far above the seconds this normally takes, so
+# hitting it means something is wrong rather than slow.
+# `|| rc=$?` rather than `if ! …`: inside an `if !` branch $? is the status of
+# the negation (always 0), so the real exit code would be lost. The `||` also
+# keeps `set -e` from killing the script before we can report.
+rc=0
+timeout -k 30 600 docker compose wait iceberg-migrate || rc=$?
+if [ "$rc" -ne 0 ]; then
+  case "$rc" in
+    124 | 137) echo "!! migrations timed out after 600s" ;;
+    *) echo "!! migrations failed (exit $rc)" ;;
+  esac
+  # Bounded: the likeliest cause of a 600s wait is a wedged docker daemon, and an
+  # unbounded `logs` here would re-block the concurrency group one line after the
+  # code added to prevent it. `|| true` so this line's status does not become the
+  # script's under pipefail.
+  timeout 60 docker compose logs --no-log-prefix iceberg-migrate 2>&1 | tail -40 || true
+  # `wait` only observes; killing it leaves the container running. Without this,
+  # the next deploy's `up -d` is a no-op for an already-running container (the
+  # migrations are bind-mounted, so editing SQL does not change its config hash),
+  # and it would wait on the same wedged container again — deploys would stop
+  # hanging forever but could never succeed.
+  timeout 60 docker compose rm -sf iceberg-migrate >/dev/null 2>&1 || true
   exit 1
 fi
 echo "migrations ok"
