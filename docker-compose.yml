@@ -205,6 +205,11 @@ services:
       PREFECT_UI_API_URL: ${PREFECT_UI_API_URL:-/api}
       PREFECT_SERVER_API_AUTH_STRING: ${PREFECT_SERVER_API_AUTH_STRING:-}
       PREFECT_SERVER_ANALYTICS_ENABLED: "false"
+      # Without this the container dies with SIGILL and an empty log: OpenSSL
+      # inside cryptography's Rust binding probes the sve2/sme bits the Docker
+      # VM advertises on Apple Silicon but cannot execute. ARM-only, a no-op on
+      # the amd64 deploy target.
+      OPENSSL_armcap: "0"
     ports:
       - "127.0.0.1:${PREFECT_HOST_PORT}:4200"
     networks:
@@ -273,6 +278,8 @@ services:
       # Client-side counterpart of the server's PREFECT_SERVER_API_AUTH_STRING.
       PREFECT_API_AUTH_STRING: ${PREFECT_SERVER_API_AUTH_STRING:-}
       PREFECT_LOGGING_EXTRA_LOGGERS: pipelines,ai
+      # Same SIGILL as the prefect service above — shared base image.
+      OPENSSL_armcap: "0"
       TRINO_HOST: trino
       TRINO_PORT: "8080"
       TRINO_USER: ${TRINO_USER:-pipelines}

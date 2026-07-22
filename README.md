@@ -201,9 +201,17 @@ make clean      # also delete volumes (destroys data)
   itself. A model served on the deploy host is reached at `host.docker.internal`,
   which the service maps to the host gateway (Docker Desktop provides that name on
   its own; Linux does not).
-- **Apple Silicon**: the `prefect` server exits with SIGILL on linux/arm64, so the
-  stack does not come up on an arm64 dev machine. The deploy target is amd64 and is
-  unaffected.
+- **Apple Silicon**: `prefect` and `prefect-worker` set `OPENSSL_armcap=0`, which is
+  what lets the stack come up on an arm64 dev machine. Without it both die with
+  SIGILL (exit 132) on a cold start and log nothing at all, because the kernel kills
+  the process rather than the app failing: the Docker VM advertises the `sve2`/`sme`
+  CPU bits, OpenSSL inside the Rust binding of `cryptography` emits instructions for
+  them, and the VM does not execute them. Only these two services carry the variable
+  — `litellm` ships `cryptography` 46, which does not fault, and `gigaam` does not
+  use it at all. It is ARM-only and ignored on the amd64 deploy target. The trigger
+  is the `cryptography` version rather than the service, so a LiteLLM base-image bump
+  that pulls 49.x brings the same empty-log crash-loop to a service that has no
+  `OPENSSL_armcap` — worth checking before blaming the bump itself.
 - **Data model** lives in `migrations/*.sql` and is applied through Trino by the
   one-shot `iceberg-migrate` service on every deploy. Statements are idempotent
   (`CREATE ... IF NOT EXISTS`); the Trino CLI exits non-zero on the first failing
