@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-22 — migrations applied by a service, eval-datasets bucket
+- What: `iceberg-init` is replaced by `iceberg-migrate`, which applies `migrations/*.sql` through the Trino CLI in filename order. The namespace is now simply the first statement of the first migration, so it stops being a special case. The service waits for the iceberg catalog to answer before its first statement, then `DESCRIBE`s each expected table. `ci-deploy.sh` waits on the container and fails the deploy on a non-zero exit — `up -d` returns as soon as a one-shot container has *started* and never looks at its exit code, so without this a failed migration printed "deploy OK". `minio-init` also creates the `eval-datasets` bucket, needed by the eval publish flow.
+- Why the surrounding hardening: two of the three defects found here were of the same shape — a deploy reporting success while the result was broken. `minio-init` had no `set -e`, so a bucket whose name interpolated to empty would fail `mc mb` and still exit 0 on the trailing `echo`; and since `ci-deploy.sh` keeps an existing `.env` and never merges new keys, a newly added variable interpolates to empty on exactly the hosts that already work. Both bucket names now carry compose-level defaults and the script guards each one.
+- Also: `trino` gained an explicit healthcheck. Nothing depended on its health before `iceberg-migrate` did, and the image's defaults allow only ~40s before a container is declared unhealthy — a JVM cold start on a host bringing up a dozen services can exceed that and abort the whole deploy. Now ~180s.
+- Deliberately not done: `restart: on-failure` on the migrate container. It reads as the obvious way to survive a slow catalog, but `compose wait` returns on the *first* exit, so the retry would never be seen and a transient failure would redden the deploy anyway. The wait loop lives inside the script instead, where it can be bounded and can report why it gave up.
+- Affects: `docker-compose.yml`, `infra/github-runner/ci-deploy.sh`, `.env.example`, `README.md`.
+- By: Efremov Mark
+
 ## 2026-07-22 — call analysis domain layer and the Iceberg data model
 - What:
   - Ported the transcription and call-analysis domain layer: `ai/transcription`, `ai/reports/{shared,call_v2,call_v3}`, `ai/shared` — 26 modules plus the five JSON agent schemas under `ai/reports/static/agent/` that both analysers load before doing anything else. Two call analysers are carried, v2 and v3; they are not interchangeable, so a report records which produced it.
