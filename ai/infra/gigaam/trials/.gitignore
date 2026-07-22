@@ -1,0 +1,4 @@
+.env
+audio/
+cache/
+__pycache__/

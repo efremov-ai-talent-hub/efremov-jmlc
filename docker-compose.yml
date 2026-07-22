@@ -214,6 +214,14 @@ services:
       DATABASE_URL: ${LITELLM_DATABASE_URL}
       GIGACHAT_CREDENTIALS: ${LITELLM_GIGACHAT_CREDENTIALS:-}
       GIGACHAT_SCOPE: ${LITELLM_GIGACHAT_SCOPE:-GIGACHAT_API_B2B}
+      # Self-hosted GigaAM wrapper (OpenAI-compatible). The wrapper ignores the
+      # api_key; the var exists so config.yaml can resolve os.environ/GIGAAM_MASTER_KEY.
+      GIGAAM_API_BASE_URL: ${LITELLM_GIGAAM_BASE_URL:-http://gigaam:8000/v1}
+      # Must stay non-empty: LiteLLM treats a falsy api_key as "unset" and falls
+      # back to OPENAI_API_KEY, which does not exist here, so the OpenAI client
+      # raises before the request ever reaches the wrapper. The wrapper itself
+      # ignores the value.
+      GIGAAM_MASTER_KEY: ${LITELLM_GIGAAM_MASTER_KEY:-sk-gigaam-noauth}
       GIGACHAT_VERIFY_SSL_CERTS: ${LITELLM_GIGACHAT_VERIFY_SSL_CERTS:-false}
       # Disables outbound TLS verification proxy-wide. Needed because GigaChat —
       # the only upstream provider here — serves a Russian Trusted CA chain absent
@@ -230,6 +238,45 @@ services:
       - "127.0.0.1:${LITELLM_HOST_PORT:-34000}:4000"
     networks:
       - lakehouse
+
+  gigaam:
+    build:
+      context: ./ai/infra/gigaam
+      dockerfile: Dockerfile
+    image: efremov-jmlc/gigaam:latest
+    # amd64-only in practice: torchcodec (required by gigaam[longform]) ships no
+    # linux-aarch64 wheel, so a native arm64 build fails at that layer. Stating it
+    # here makes an arm64 dev machine build under emulation instead.
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      # pyannote VAD weights are gated on HuggingFace — longform transcription
+      # fails without a token that has accepted the model terms.
+      HF_TOKEN: ${GIGAAM_HF_TOKEN:-}
+      GIGAAM_MODEL: ${GIGAAM_MODEL:-v3_e2e_rnnt}
+      GIGAAM_THREADS: ${GIGAAM_THREADS:-3}
+      GIGAAM_DOWNLOAD_ROOT: /cache/gigaam
+      HF_HOME: /cache/hf
+      PYANNOTE_CACHE: /cache/pyannote
+    ports:
+      - "127.0.0.1:${GIGAAM_HOST_PORT:-38103}:8000"
+    volumes:
+      - gigaam-cache:/cache
+    networks:
+      - lakehouse
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      # Model weights download on first boot and load into RAM — slow start.
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   grafana:
     image: grafana/grafana-oss:13.0.2@sha256:5dad0df181cb644a14e13617b913b261a54f7d4fd4510721dba420929f35bea2
@@ -277,3 +324,4 @@ volumes:
   prefect-postgres-data:
   litellm-db-data:
   grafana-data:
+  gigaam-cache:

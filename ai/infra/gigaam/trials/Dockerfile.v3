@@ -1,0 +1,27 @@
+# Экспериментальный образ для замера GigaAM-v3 на CPU.
+# v3 нет в pip-пакете gigaam — грузится через transformers + trust_remote_code,
+# поэтому стек зависимостей другой и тяжелее (см. карточку ai-sage/GigaAM-v3).
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# CPU-only torch версий из карточки модели.
+RUN pip install --no-cache-dir torch==2.8.0 torchaudio==2.8.0 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Версии зафиксированы под trust_remote_code v3 (карточка модели).
+# torchcodec — декод аудио; pyannote 4.0 — VAD (использует новый token API,
+# pin huggingface_hub тут не нужен).
+RUN pip install --no-cache-dir \
+    transformers==4.57.1 \
+    "pyannote-audio==4.0.0" \
+    torchcodec==0.7.0 \
+    hydra-core omegaconf sentencepiece pydub
+
+COPY trial_gigaam_v3.py /app/trial_gigaam_v3.py
+
+ENTRYPOINT ["python3", "trial_gigaam_v3.py"]

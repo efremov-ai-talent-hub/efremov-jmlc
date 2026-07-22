@@ -1,6 +1,7 @@
 # LiteLLM proxy config.
 #
-# One model group (gigachat-lite) plus the Grafana MCP gateway. All secrets
+# Two model groups (gigachat-lite, transcription-gigaam) plus the Grafana MCP
+# gateway. All secrets
 # resolve from the environment via `os.environ/<NAME>` — populated from .env
 # (see .env.example). The build-time patches (GigaChat finish_reason, A2A method
 # map, OTEL non-dict guard) are baked into the image via the Dockerfile — see
@@ -20,6 +21,20 @@ model_list:
       api_key: os.environ/GIGACHAT_CREDENTIALS
       ssl_verify: false
     model_info: { kind: gigachat-lite }
+
+  # ---- transcription: self-hosted GigaAM ----
+  # OpenAI-compatible wrapper around GigaAM (ai/infra/gigaam), reached over the
+  # lakehouse network via GIGAAM_API_BASE_URL. The wrapper ignores model and
+  # api_key — both are here only to satisfy the OpenAI client shape. Long timeout
+  # because ASR on CPU is slow: 30 min covers roughly an hour of audio.
+  - model_name: transcription-gigaam
+    litellm_params:
+      model: openai/gigaam-v3
+      api_key: os.environ/GIGAAM_MASTER_KEY
+      api_base: os.environ/GIGAAM_API_BASE_URL
+      timeout: 1800
+      rpm: 60
+    model_info: { kind: transcription-gigaam }
 
 # ---- MCP gateway ----
 # LiteLLM aggregates external MCP servers and re-exposes them under its own

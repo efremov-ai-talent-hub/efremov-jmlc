@@ -1,0 +1,61 @@
+# ОТДЕЛЬНЫЙ экспериментальный стек GigaAM. НЕ подключать к основному
+# docker-compose проекта — запускается изолированно из этой папки.
+#
+#   cp .env.example .env            # вписать HF_TOKEN
+#   mkdir -p audio && cp <запись>.mp3 audio/call.mp3
+#
+#   v2 (pip-пакет gigaam):  docker compose run --rm trial    /audio/call.mp3 v2_rnnt
+#   v3 (HF AutoModel):      docker compose run --rm trial-v3 /audio/call.mp3 e2e_rnnt
+name: gigaam-experiment
+
+x-common: &common
+  env_file:
+    - .env                         # HF_TOKEN для gated pyannote
+  environment:
+    GIGAAM_THREADS: "3"            # половина из 6 ядер — имитируем "делим машину"
+    OMP_NUM_THREADS: "3"
+    MKL_NUM_THREADS: "3"
+    HF_HOME: /cache/hf             # кэш HF (v3 AutoModel, pyannote-снапшоты)
+    PYANNOTE_CACHE: /cache/pyannote # pyannote пишет веса сюда, а не в /root/.cache
+  cpus: "3"                        # жёсткий потолок на стороне docker (страховка)
+  volumes:
+    - ./audio:/audio:ro            # сюда кладёте запись звонка
+    - ./cache:/cache               # веса не качаются заново при каждом прогоне
+
+services:
+  # v2/v1 через pip-пакет gigaam (load_model)
+  trial:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+  # v3 через transformers AutoModel (trust_remote_code) — v3 в pip нет
+  trial-v3:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile.v3
+
+  # gigaam из git main: v3 + word_timestamps (которых нет в pip 0.1.0)
+  trial-git:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile.git
+
+  # замер ONNX vs PyTorch для ядра (тот же git-образ, другой энтрипойнт)
+  trial-onnx:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile.git
+    entrypoint: ["python3", "trial_gigaam_onnx.py"]
+
+  # тур по возможностям: word_timestamps + эмоции + SSL-эмбеддинги (pip-образ)
+  features:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["python3", "trial_features.py"]

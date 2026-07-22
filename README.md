@@ -12,14 +12,17 @@
 | `trino`            | query engine — **only** the `iceberg` catalog | `38080`            |
 | `prefect`          | Prefect 3 server (UI + API), no deployments  | `34200`             |
 | `prefect-postgres` | Prefect's backing DB                         | —                   |
-| `litellm`          | patched LiteLLM proxy (only `gigachat-lite`) | `34000`             |
+| `litellm`          | patched LiteLLM proxy (LLM + ASR routing)    | `34000`             |
 | `litellm-db`       | LiteLLM's backing DB                         | —                   |
+| `gigaam`           | self-hosted GigaAM ASR (Russian speech-to-text) | `38103`          |
 | `grafana`          | Grafana (no datasources/metrics wired yet)   | `33000`             |
 | `mcp-grafana`      | Grafana MCP server (proxied via LiteLLM `/mcp`) | —                |
 
 Data flow: **MinIO (S3) → Iceberg REST (+ Postgres catalog) → Trino**.
-LiteLLM exposes one model group (`gigachat-lite`) and re-exposes the Grafana
-MCP server under its own `/mcp`. Grafana currently has no datasources wired up.
+LiteLLM exposes two model groups — `gigachat-lite` (chat) and
+`transcription-gigaam` (speech-to-text, routed to the local `gigaam` service) —
+and re-exposes the Grafana MCP server under its own `/mcp`. Grafana currently has
+no datasources wired up.
 
 ## Quick start
 
@@ -45,6 +48,16 @@ Smoke-test Trino → Iceberg once everything is healthy:
 docker compose exec trino trino --execute "SHOW SCHEMAS FROM iceberg;"
 ```
 
+Transcribe a file through the proxy (GigaAM runs on CPU — expect it to be slower
+than realtime, and the first call after a fresh start waits on the model load):
+
+```bash
+curl -s http://localhost:34000/v1/audio/transcriptions \
+  -H "Authorization: Bearer sk-master-dev-change-me" \
+  -F model=transcription-gigaam \
+  -F file=@call.mp3
+```
+
 Tear down:
 
 ```bash
@@ -60,4 +73,12 @@ make clean      # also delete volumes (destroys data)
 - **Trino config** lives in `infra/trino/etc/`. The iceberg catalog reads MinIO
   creds and the warehouse bucket from the environment via `${ENV:VAR}`, passed in
   from `.env` by the `trino` service — so they never skew from the rest of the stack.
+- **GigaAM** (`ai/infra/gigaam/`) is a thin OpenAI-compatible wrapper around the
+  GigaAM ASR model, built locally and reached only through LiteLLM. It is the
+  heaviest service here: CPU-only inference, weights downloaded into the
+  `gigaam-cache` volume on first boot, model kept warm in RAM. Set
+  `GIGAAM_HF_TOKEN` in `.env` for longform audio — the VAD weights it needs are a
+  gated HuggingFace repo, and without an authorised token only short files work.
+  `ai/infra/gigaam/trials/` is the standalone experiment stand that picked this
+  model; it has its own compose file and is not part of this stack.
 - Host ports bind to `127.0.0.1` only.

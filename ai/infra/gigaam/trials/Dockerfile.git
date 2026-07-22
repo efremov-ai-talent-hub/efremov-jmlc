@@ -1,0 +1,28 @@
+# GigaAM из git main (НЕ PyPI 0.1.0): даёт v3 через load_model + word_timestamps.
+# Это кандидат на замену и pip-0.1.0-пути (v2), и HF-хака (v3 trust_remote_code).
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# CPU-only torch (иначе тянет CUDA-колёса).
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# gigaam из git main + longform-экстра (pyannote VAD).
+# Пины hf_hub/numpy НЕ ставим: git-стек сам объявляет совместимые версии
+# (pyannote/transformers). Перенесённый из pip-0.1.0-пути "huggingface_hub<1.0"
+# ломал transformers (нет is_offline_mode) — это был артефакт старого pyannote.
+RUN pip install --no-cache-dir \
+    "gigaam[longform] @ git+https://github.com/salute-developers/GigaAM.git" pydub
+
+# onnx-экспорт + runtime для замера ядра (trial-onnx). Отдельным слоем после
+# дорогого git-install, чтобы тот переиспользовался из кэша.
+RUN pip install --no-cache-dir onnx onnxruntime
+
+COPY trial_gigaam_git.py /app/trial_gigaam_git.py
+COPY trial_gigaam_onnx.py /app/trial_gigaam_onnx.py
+
+ENTRYPOINT ["python3", "trial_gigaam_git.py"]
