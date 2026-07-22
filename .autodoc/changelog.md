@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — Prefect auth string must not be blank
+- What: `PREFECT_SERVER_API_AUTH_STRING` now defaults to `admin:admin` instead of empty. Blank does not mean "no auth": the server enables its auth middleware whenever the setting is present at all (`server/api/server.py:521` — `if auth_string is not None`), while the client only attaches the Basic header when the value is truthy. So a blank value made the server demand credentials the worker could never send, and every API call returned 401.
+- Why it went unnoticed: the middleware exempts `GET /api/health` (and `/ready`) so k8s-style probes keep working, and that is exactly the endpoint the `prefect` healthcheck uses. The server therefore reported healthy from the day it was added while its API was unusable. Nothing exercised the API until the worker arrived and became the first real client — the failure was latent, not new.
+- To actually run without auth, the variable has to be dropped from the `prefect` service rather than blanked; that is written down in `.env.example` next to the value.
+- Affects: `.env.example`, `README.md`.
+- By: Efremov Mark
+
 ## 2026-07-22 — Prefect worker service (no flows yet)
 - What: added a `prefect-worker` service on the work pool named by `PREFECT_WORK_POOL`, authenticating with the same auth string as the server (`PREFECT_API_AUTH_STRING` is the client-side counterpart of the server's `PREFECT_SERVER_API_AUTH_STRING`). The pool is created on first start — `--create-pool-if-not-found` defaults to true, and `--type process` only makes the type it is created as explicit. Uses the stock Prefect image, the same digest as the server: with nothing deployed the worker only polls, so none of the flow-side dependencies exist yet. When flows land it will need their code and libraries, and that is the point to give it a build of its own plus a `stop_grace_period`.
 - Why: the server stores deployments and serves the UI but executes nothing. A worker is the missing half, and standing it up separately keeps the next step — flows and deployments — a code change rather than an infrastructure one.
