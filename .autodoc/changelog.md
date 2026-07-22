@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-22 — the analysis model the caller asks for is the one that gets called
+- What: `call-report-v3` failed on its first real run with `Invalid model name passed in model=gpt-4o-mini` — a model group this stack does not serve. The flow passes the model as a plain string; the ported analysers resolved it as `getattr(model, "model_name")`, then `cfg.call_analysis_model`, then a hardcoded `gpt-4o-mini`. A string has no `.model_name` and this project defines no such config attribute, so every request went out under the fallback and the caller's model was discarded in silence.
+- The shape to remember: the analysers were written for a caller that passed a model *object*. Nothing failed at the boundary because a fallback chain always produced *something* — the port did not break, it substituted. A missing model now raises instead of defaulting, so the same mistake fails on the first call rather than on every call.
+- The first fix was incomplete in the same way. `resolve_model` landed in both analysers, but v3's core then re-resolved through the env-first helper one frame down, undoing it and leaving the two analysers with opposite precedence. Caught by review, not by reasoning.
+- Two functions differing by one word — `resolve_model_name` (environment wins) and `resolve_model` (caller wins) — sat adjacent in one module with contradictory contracts. That is the same shape as the original defect, so the env-first one is now `resolve_model_from_env`. It keeps env-first deliberately: the evals runner documents `ANALYSIS_OPENAI_MODEL` as an override of whatever a run requests.
+- `call_v2.core._model_name` had the inversion too — env beat the argument, which makes a per-run parameter unable to override a process-wide variable. Now the argument wins.
+- `call_report_flow` validates the model at entry. The analyser's raise does not survive `analyse_candidate`, which carries failures as data, so an empty `ANALYSIS_CHAT_MODEL` would have read as `written: 0` — a run that looks unproductive rather than misconfigured.
+- Left alone: the `gpt-4o-mini` literals in `call_v2/core.py` and `shared/chatgpt_model.py`. Unreachable from the flow now, reachable only from the evals runner, and changing untested code to delete an unreachable literal is the worse trade.
+- Affects: `ai/reports/`, `ai/evals/analysis_runner.py`, `pipelines/flows/analysis/call_report.py`.
+- By: Efremov Mark
+
 ## 2026-07-22 — the blind judge rubric is written down
 - What: `docs/claudeops/judge-prompt.md` records, verbatim, the rubric used to grade extraction quality — three independent Claude subagents per call, each blind to which model produced the report, plus the batch wrapper and the structured output schema they return.
 - Why it sits in claudeops rather than with the evals: it is another use of subagents in this project's process, alongside the reviewer and the changelog maintainer. A separate file rather than inline, because the claudeops README is deliberately short and a prompt this long would bury the two lines that matter there.
