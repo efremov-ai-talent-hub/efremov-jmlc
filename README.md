@@ -45,29 +45,73 @@ Then:
 - LiteLLM — http://localhost:34000/health (set `LITELLM_GIGACHAT_CREDENTIALS`
   in `.env` for `gigachat-lite` to actually route completions)
 
-Smoke-test Trino → Iceberg once everything is healthy:
+## Verifying it works
+
+Four commands, each exercising a path the others do not. Worth running in this
+order after a deploy — a green deploy means the containers started, not that any
+of this answers.
+
+**Trino → Iceberg REST → MinIO.** Lists the tables the migrations created:
 
 ```bash
-docker compose exec trino trino --execute "SHOW TABLES FROM iceberg.analysis;"
+docker compose exec -T trino trino --execute "SHOW TABLES FROM iceberg.analysis"
 ```
 
-Run the pipeline once the flows are registered — seed a call row, then trigger:
+Note this reads catalog metadata only and never touches object storage. To prove
+writes work — a distinct failure mode, since MinIO answers `507` on writes past
+its free-space threshold while still serving reads — create and drop a table:
 
 ```bash
-make deploy-flows
-docker compose exec -T prefect-worker prefect deployment run 'analysis-transcription/transcription'
-docker compose exec -T prefect-worker prefect deployment run 'analysis-call-report/call-report-v3'
-docker compose exec -T prefect-worker prefect deployment run 'eval-export-dataset/eval-export'
+docker compose exec -T trino trino --execute "CREATE TABLE iceberg.analysis._probe (x int)"
+docker compose exec -T trino trino --execute "DROP TABLE iceberg.analysis._probe"
 ```
 
-Transcribe a file through the proxy directly (GigaAM runs on CPU — expect it to be
-slower than realtime, and the first call after a fresh start waits on the model load):
+**GigaAM through the proxy.** Proves the wrapper, the model weights and LiteLLM's
+audio routing all work together. CPU inference is slower than realtime, and the
+first call after a fresh start waits on the model load:
 
 ```bash
 curl -s http://localhost:34000/v1/audio/transcriptions \
   -H "Authorization: Bearer sk-master-dev-change-me" \
   -F model=transcription-gigaam \
-  -F file=@call.mp3
+  -F file=@seeds/audio/v1.mp3
+```
+
+**LiteLLM's MCP gateway → Grafana.** Proves the whole chain: the proxy forwards
+MCP calls, `mcp-grafana` reaches Grafana, and the dashboard provisioning landed.
+Returns the `gigaam-asr` dashboard:
+
+```bash
+curl -s -X POST http://localhost:34000/mcp/ \
+  -H "Authorization: Bearer sk-master-dev-change-me" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "x-mcp-servers: grafana" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"grafana-search_dashboards","arguments":{"query":"gigaam"}}}'
+```
+
+**The same gateway down to real metrics.** A different path from the one above:
+dashboards come from Grafana's own database, while this goes on through the
+datasource to Prometheus. `gigaam_model_loaded` is the one metric that exists
+before any transcription has run:
+
+```bash
+curl -s -X POST http://localhost:34000/mcp/ \
+  -H "Authorization: Bearer sk-master-dev-change-me" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "x-mcp-servers: grafana" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"grafana-query_prometheus","arguments":{"datasourceUid":"prometheus","expr":"gigaam_model_loaded","queryType":"instant","startTime":"now-5m","endTime":"now"}}}'
+```
+
+## Running the pipeline
+
+Seed calls from local audio, then trigger a flow. Deployments are registered by
+the deploy itself; `make deploy-flows` is only for registering them by hand.
+
+```bash
+make seed
+docker compose exec -T prefect-worker prefect deployment run 'analysis-transcription/transcription'
+docker compose exec -T prefect-worker prefect deployment run 'analysis-call-report/call-report-v3'
+docker compose exec -T prefect-worker prefect deployment run 'eval-export-dataset/eval-export'
 ```
 
 Tear down:
@@ -94,9 +138,10 @@ make clean      # also delete volumes (destroys data)
   `ai/infra/gigaam/trials/` is the standalone experiment stand that picked this
   model; it has its own compose file and is not part of this stack.
 - **Prefect** runs a server plus a worker on the pool named by `PREFECT_WORK_POOL`,
-  created on first worker start. Flows live in `pipelines/flows/`; register them
-  with `make deploy-flows`, which runs `prefect deploy` inside the worker because
-  that is where the code and its dependencies are installed. Deployments carry no
+  created on first worker start. Flows live in `pipelines/flows/` and are
+  registered by the deploy itself, from inside the worker — that is where the code
+  and its dependencies are. `make deploy-flows` does the same by hand, for when
+  you are iterating without deploying. Deployments carry no
   schedule on purpose — every run costs LLM calls, and a stand that spends money
   on a timer is worse than one you trigger. The UI and API require the
   credentials in `PREFECT_SERVER_API_AUTH_STRING` — which must not be blank: an
