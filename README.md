@@ -11,6 +11,7 @@
 | `iceberg-init`     | one-shot: creates the `raw` namespace        | —                   |
 | `trino`            | query engine — **only** the `iceberg` catalog | `38080`            |
 | `prefect`          | Prefect 3 server (UI + API), no deployments  | `34200`             |
+| `prefect-worker`   | polls the work pool; nothing deployed yet    | —                   |
 | `prefect-postgres` | Prefect's backing DB                         | —                   |
 | `litellm`          | patched LiteLLM proxy (LLM + ASR routing)    | `34000`             |
 | `litellm-db`       | LiteLLM's backing DB                         | —                   |
@@ -81,4 +82,11 @@ make clean      # also delete volumes (destroys data)
   gated HuggingFace repo, and without an authorised token only short files work.
   `ai/infra/gigaam/trials/` is the standalone experiment stand that picked this
   model; it has its own compose file and is not part of this stack.
+- **Prefect** runs a server plus a worker on the pool named by `PREFECT_WORK_POOL`,
+  created on first worker start. Nothing is deployed to it yet, so the worker just
+  polls an empty pool; it uses the stock Prefect image and will need a build of its
+  own once flows arrive with their dependencies.
+- **Apple Silicon**: the `prefect` server exits with SIGILL on linux/arm64, so the
+  stack does not come up on an arm64 dev machine. The deploy target is amd64 and is
+  unaffected.
 - Host ports bind to `127.0.0.1` only.
