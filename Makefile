@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
 
-.PHONY: help env up down stop status logs build ps clean deploy-flows
+.PHONY: help env up down stop status logs build ps clean deploy-flows seed
 
 help:
 	@echo "Targets:"
@@ -13,6 +13,7 @@ help:
 	@echo "  make logs     - tail logs (all services)"
 	@echo "  make clean    - down + remove named volumes (DESTROYS DATA)"
 	@echo "  make deploy-flows - register Prefect deployments (runs in the worker)"
+	@echo "  make seed         - upload seeds/audio/* to MinIO and record them as calls"
 
 env:
 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")
@@ -41,3 +42,9 @@ clean:
 # dependencies are installed.
 deploy-flows:
 	$(COMPOSE) exec -T prefect-worker prefect deploy --all
+
+# Audio comes from ./seeds, mounted into the worker read-only. Idempotent: the
+# file stem is the call_id, so re-running re-uploads the objects and leaves
+# existing rows alone.
+seed:
+	$(COMPOSE) exec -T prefect-worker python -m pipelines.seed_calls

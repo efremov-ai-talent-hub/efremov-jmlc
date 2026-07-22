@@ -291,6 +291,10 @@ services:
       OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
       SELLER_BRAND: ${SELLER_BRAND:-Девелопер}
       SELLER_PROJECTS: ${SELLER_PROJECTS:-}
+    volumes:
+      # Seed audio, mounted rather than baked into the image: recordings are not
+      # versioned here, and an image carrying them could not be shared.
+      - ./seeds:/seeds:ro
     networks:
       - lakehouse
     # The worker exits on an unreachable API instead of retrying, and depends_on

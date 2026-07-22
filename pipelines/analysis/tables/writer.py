@@ -257,6 +257,35 @@ class CallReportRow:
 
 
 @dataclass
+class CallRow:
+    """A source call.
+
+    Not an artifact: no version, no ``is_current``. Calls arrive from the seeder
+    rather than being produced here, so the only rule is that ``call_id`` stays
+    stable — everything downstream keys on it, and a re-seed that changed it
+    would orphan every transcript and report already made for that call.
+    """
+
+    call_id: str
+    audio_key: str
+    duration_seconds: float | None
+    started_at: datetime | None
+    manager: str | None
+    source: str
+
+    def as_params(self) -> dict[str, Any]:
+        return {
+            "call_id": self.call_id,
+            "audio_key": self.audio_key,
+            "duration_seconds": self.duration_seconds,
+            "started_at": self.started_at,
+            "manager": self.manager,
+            "source": self.source,
+            "created_at": _now(),
+        }
+
+
+@dataclass
 class ReportInputRow:
     report_id: str
     report_version: int
@@ -346,6 +375,16 @@ class LLMCallRow:
 
 # --------------------------------------------------------------- inserts
 
+_CALL_COLUMNS = [
+    "call_id",
+    "audio_key",
+    "duration_seconds",
+    "started_at",
+    "manager",
+    "source",
+    "created_at",
+]
+
 _TRANSCRIPTION_COLUMNS = [
     "transcription_id",
     "call_id",
@@ -393,6 +432,33 @@ _LLM_CALL_COLUMNS = [
     *_STAMP_FIELDS,
     "created_at",
 ]
+
+
+def insert_calls_batch(conn: Connection, rows: list[CallRow]) -> None:
+    _insert_batch(
+        conn,
+        table="calls",
+        columns=_CALL_COLUMNS,
+        rows=[r.as_params() for r in rows],
+    )
+
+
+def existing_call_ids(conn: Connection, call_ids: list[str]) -> set[str]:
+    """Which of these calls are already recorded.
+
+    The seeder is expected to be re-run, so it asks first rather than inserting
+    and hoping: Iceberg has no unique constraint to lean on, and a second insert
+    of the same call_id would simply create a duplicate row that every
+    downstream join then multiplies.
+    """
+    if not call_ids:
+        return set()
+    params = {f"id{i}": v for i, v in enumerate(call_ids)}
+    placeholders = ", ".join(f":{k}" for k in params)
+    query = text(
+        f"SELECT call_id FROM {qualified('calls')} WHERE call_id IN ({placeholders})"
+    )
+    return {row.call_id for row in conn.execute(query, params)}
 
 
 def insert_transcriptions_batch(conn: Connection, rows: list[TranscriptionRow]) -> None:
