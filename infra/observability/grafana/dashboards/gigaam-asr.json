@@ -1,0 +1,147 @@
+{
+  "id": null,
+  "uid": "gigaam-asr",
+  "title": "GigaAM ASR (self-hosted)",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "tags": [
+    "gigaam",
+    "asr"
+  ],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "RTF (compute / audio) p50·p95",
+      "description": "Ниже 1 = быстрее реального времени. Растёт — модель/CPU не успевает.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gigaam_rtf_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(gigaam_rtf_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests/s by status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(gigaam_requests_total[5m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Inflight & model loaded",
+      "description": "inflight — занят ли слот (concurrency=1). model_loaded — 1 после тёплой загрузки.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "gigaam_inflight",
+          "legendFormat": "inflight"
+        },
+        {
+          "expr": "gigaam_model_loaded",
+          "legendFormat": "model_loaded"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput — audio seconds processed /s",
+      "description": "rate аудио-секунд: сколько секунд записи обрабатывается в секунду (эффективный realtime-множитель).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(gigaam_audio_seconds_total[5m]))",
+          "legendFormat": "audio s/s"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Stage time p95 (s) by stage",
+      "description": "transcribe (движок+VAD) vs segment (склейка слов).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gigaam_stage_seconds_bucket[5m])) by (le, stage))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request time p95 (s)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gigaam_request_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    }
+  ]
+}

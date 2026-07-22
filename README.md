@@ -16,14 +16,16 @@
 | `litellm`          | patched LiteLLM proxy (LLM + ASR routing)    | `34000`             |
 | `litellm-db`       | LiteLLM's backing DB                         | —                   |
 | `gigaam`           | self-hosted GigaAM ASR (Russian speech-to-text) | `38103`          |
-| `grafana`          | Grafana (no datasources/metrics wired yet)   | `33000`             |
+| `prometheus`       | scrapes gigaam and litellm metrics           | —                   |
+| `grafana`          | Grafana + provisioned Prometheus datasource  | `33000`             |
 | `mcp-grafana`      | Grafana MCP server (proxied via LiteLLM `/mcp`) | —                |
 
 Data flow: **MinIO (S3) → Iceberg REST (+ Postgres catalog) → Trino**.
-LiteLLM exposes two model groups — `gigachat-lite` (chat) and
-`transcription-gigaam` (speech-to-text, routed to the local `gigaam` service) —
-and re-exposes the Grafana MCP server under its own `/mcp`. Grafana currently has
-no datasources wired up.
+LiteLLM exposes five model groups — `gigachat-lite` / `-pro` / `-max`,
+`gigachat-lightning-local` (a model served outside the stack, reached over a
+tunnel) and `transcription-gigaam` (speech, routed to the local `gigaam` service) —
+and re-exposes the Grafana MCP server under its own `/mcp`. Grafana is provisioned
+from files with a Prometheus datasource and the GigaAM ASR dashboard.
 
 ## Quick start
 
@@ -112,4 +114,9 @@ make clean      # also delete volumes (destroys data)
   dropped or renamed out of band. Adding a column later means a
   new numbered file with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`; a tracking
   table only becomes necessary once a migration stops being idempotent.
+- **Observability** is provisioned from `infra/observability/`, not clicked in:
+  Prometheus scrapes `gigaam` and `litellm`, and Grafana gets the datasource plus
+  the GigaAM ASR dashboard on every deploy. This is also what makes both visible
+  to the Grafana MCP server — it can only reach what Grafana knows about, so a
+  hand-made datasource on one host would leave the MCP path untestable on another.
 - Host ports bind to `127.0.0.1` only.

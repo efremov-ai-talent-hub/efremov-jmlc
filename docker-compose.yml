@@ -436,9 +436,29 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Scrapes the stack's own metrics. Not published to the host: Grafana reaches
+  # it by service name, and it is the Grafana datasource — not this service —
+  # that the MCP server queries through.
+  prometheus:
+    image: prom/prometheus:v3.7.3@sha256:49214755b6153f90a597adcbff0252cc61069f8ab69ce8411285cd4a560e8038
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # A demo stand does not need months of history, and the deploy host has
+      # already run out of disk once.
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - lakehouse
+
   grafana:
     image: grafana/grafana-oss:13.0.2@sha256:5dad0df181cb644a14e13617b913b261a54f7d4fd4510721dba420929f35bea2
     restart: unless-stopped
+    depends_on:
+      - prometheus
     environment:
       <<: *common-env
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -446,6 +466,11 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - grafana-data:/var/lib/grafana
+      # Datasource and dashboards are provisioned from files rather than clicked
+      # in: the MCP server can only see what Grafana knows about, so this is what
+      # makes both reachable from it after a fresh deploy.
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "127.0.0.1:${GRAFANA_HOST_PORT:-33000}:3000"
     networks:
@@ -482,4 +507,5 @@ volumes:
   prefect-postgres-data:
   litellm-db-data:
   grafana-data:
+  prometheus-data:
   gigaam-cache:

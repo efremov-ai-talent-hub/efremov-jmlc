@@ -1,0 +1,26 @@
+# Scrapes the two services in this stack that expose Prometheus metrics without
+# authentication. Both are reached over the lakehouse network by service name and
+# are never published to the host.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # gigaam_requests_total{status}, gigaam_request_seconds, gigaam_rtf,
+  # gigaam_stage_seconds{stage}, gigaam_audio_seconds_total, gigaam_inflight,
+  # gigaam_model_loaded. See ai/infra/gigaam/app/metrics.py — the dashboard in
+  # grafana/dashboards/gigaam-asr.json is built on exactly these.
+  - job_name: gigaam
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gigaam:8000"]
+
+  # litellm_* — request counts, latency and spend per model group. The proxy
+  # serves /metrics unauthenticated on purpose (require_auth_for_metrics_endpoint
+  # is false in its config): this is internal scrape plumbing on a network that
+  # is not published, and upstream flipping that default has silently broken
+  # scrapes before.
+  - job_name: litellm
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["litellm:4000"]

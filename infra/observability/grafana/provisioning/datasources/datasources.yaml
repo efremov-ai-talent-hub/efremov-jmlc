@@ -1,0 +1,13 @@
+apiVersion: 1
+
+# Registering the datasource here is also what makes metrics reachable from the
+# Grafana MCP server: its query_prometheus / list_prometheus_* tools proxy
+# through a datasource by uid, so an unregistered Prometheus is invisible to it.
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
