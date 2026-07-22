@@ -132,7 +132,7 @@ def _persist(results: list[ReportResult], *, analyser_version: str, model: str) 
 def call_report_flow(
     analyser_version: str = "v3",
     limit: int | None = None,
-    model: str = "gigachat-lite",
+    model: str = config.ANALYSIS_CHAT_MODEL,
 ) -> dict[str, int]:
     logger = get_run_logger()
     if analyser_version not in ANALYSERS:

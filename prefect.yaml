@@ -16,9 +16,9 @@ deployments:
     description: Transcribe calls that have audio but no current transcript.
     work_pool:
       name: default-pool
-    parameters:
-      whisper_model: transcription-gigaam
-      chat_model: gigachat-lite
+    # No model parameters: an explicit value here would be baked into the
+    # deployment and would override the flow's default, which reads .env. Left
+    # unset, the model is changed by editing .env and restarting the worker.
 
   - name: call-report-v3
     entrypoint: pipelines/flows/analysis/call_report.py:call_report_flow

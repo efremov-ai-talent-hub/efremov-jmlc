@@ -291,6 +291,10 @@ services:
       OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
       SELLER_BRAND: ${SELLER_BRAND:-Девелопер}
       SELLER_PROJECTS: ${SELLER_PROJECTS:-}
+      # Proxy model groups the flows default to. Deployments pass no model
+      # parameter, so these decide it — change here, restart the worker.
+      ANALYSIS_CHAT_MODEL: ${ANALYSIS_CHAT_MODEL:-gigachat-lite}
+      ANALYSIS_WHISPER_MODEL: ${ANALYSIS_WHISPER_MODEL:-transcription-gigaam}
     volumes:
       # Seed audio, mounted rather than baked into the image: recordings are not
       # versioned here, and an image carrying them could not be shared.
@@ -332,6 +336,12 @@ services:
       dockerfile: Dockerfile
     image: efremov-jmlc/litellm:latest
     restart: unless-stopped
+    # Resolves host.docker.internal to the host gateway, which is how a model
+    # served on the deploy host — behind an SSH tunnel, say — is reachable from
+    # in here. Docker Desktop provides this name on its own; on Linux, where the
+    # deploy host runs, it does not exist without this line.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       litellm-db:
         condition: service_healthy
@@ -352,6 +362,12 @@ services:
       # raises before the request ever reaches the wrapper. The wrapper itself
       # ignores the value.
       GIGAAM_MASTER_KEY: ${LITELLM_GIGAAM_MASTER_KEY:-sk-gigaam-noauth}
+      # Locally-served GigaChat Lightning, reached over a tunnel. Default points
+      # at the host gateway rather than loopback: inside this container
+      # 127.0.0.1 is the container. Same non-empty rule as GIGAAM_MASTER_KEY —
+      # a falsy api_key makes LiteLLM fall back to OPENAI_API_KEY.
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://host.docker.internal:29105/v1}
+      LOCAL_LLM_API_KEY: ${LOCAL_LLM_API_KEY:-sk-local-noauth}
       GIGACHAT_VERIFY_SSL_CERTS: ${LITELLM_GIGACHAT_VERIFY_SSL_CERTS:-false}
       # Disables outbound TLS verification proxy-wide. Needed because GigaChat —
       # the only upstream provider here — serves a Russian Trusted CA chain absent

@@ -22,6 +22,40 @@ model_list:
       ssl_verify: false
     model_info: { kind: gigachat-lite }
 
+  - model_name: gigachat-pro
+    litellm_params:
+      model: gigachat/GigaChat-2-Pro
+      api_key: os.environ/GIGACHAT_CREDENTIALS
+      ssl_verify: false
+    model_info: { kind: gigachat-pro }
+
+  - model_name: gigachat-max
+    litellm_params:
+      model: gigachat/GigaChat-2-Max
+      api_key: os.environ/GIGACHAT_CREDENTIALS
+      ssl_verify: false
+    model_info: { kind: gigachat-max }
+
+  # A GigaChat Lightning served locally behind an OpenAI-compatible endpoint,
+  # reached over a tunnel. The address is environment-driven because it depends
+  # on where the tunnel lands, not on this repository.
+  #
+  # It must not be a loopback address: inside this container 127.0.0.1 is the
+  # container itself. A tunnel terminating on the deploy host is reached at
+  # host.docker.internal, which the compose service maps to the host gateway.
+  #
+  # The upstream model id stays literal here. The proxy resolves os.environ/ for
+  # credentials and base urls, and a wrong value in the `model` field breaks
+  # provider detection at startup — which would take down every other group in
+  # this file, not just this one.
+  - model_name: gigachat-lightning-local
+    litellm_params:
+      model: openai/gigachat
+      api_key: os.environ/LOCAL_LLM_API_KEY
+      api_base: os.environ/LOCAL_LLM_BASE_URL
+      timeout: 300
+    model_info: { kind: gigachat-lightning-local }
+
   # ---- transcription: self-hosted GigaAM ----
   # OpenAI-compatible wrapper around GigaAM (ai/infra/gigaam), reached over the
   # lakehouse network via GIGAAM_API_BASE_URL. The wrapper ignores model and

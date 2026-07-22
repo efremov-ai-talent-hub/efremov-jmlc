@@ -122,8 +122,8 @@ def _persist(results: list[TranscriptionResult], *, model: str) -> int:
 @flow(name="analysis-transcription")
 def transcription_flow(
     limit: int | None = None,
-    whisper_model: str = "transcription-gigaam",
-    chat_model: str = "gigachat-lite",
+    whisper_model: str = config.ANALYSIS_WHISPER_MODEL,
+    chat_model: str = config.ANALYSIS_CHAT_MODEL,
 ) -> dict[str, int]:
     """Pick up untranscribed calls and transcribe them.
 

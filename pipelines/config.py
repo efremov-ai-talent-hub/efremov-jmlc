@@ -34,6 +34,14 @@ MINIO_SECRET_KEY = os.getenv("MINIO_ROOT_PASSWORD", "")
 MINIO_RAW_FILES_BUCKET = os.getenv("MINIO_RAW_FILES_BUCKET", "raw-files")
 MINIO_EVAL_DATASETS_BUCKET = os.getenv("MINIO_EVAL_DATASETS_BUCKET", "eval-datasets")
 
+# ---------------------------------------------------------------- Models
+# Proxy model groups, not provider model ids — see infra/litellm/config.yaml for
+# what is available. These are the flows' defaults; a deployment can still pass
+# its own, but leaving the parameter unset here means the model is changed by
+# editing .env and restarting the worker, with no re-registration.
+ANALYSIS_CHAT_MODEL = os.getenv("ANALYSIS_CHAT_MODEL", "gigachat-lite")
+ANALYSIS_WHISPER_MODEL = os.getenv("ANALYSIS_WHISPER_MODEL", "transcription-gigaam")
+
 # ---------------------------------------------------------------- Analysis
 # How many candidates a single flow run picks up. Kept small by default: this
 # is a demo stand, and every candidate costs an LLM call.
