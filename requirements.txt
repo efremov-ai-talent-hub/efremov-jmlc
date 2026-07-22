@@ -4,6 +4,12 @@
 trino==0.337.0
 sqlalchemy==2.0.44
 openai==2.9.0
-pydantic-ai==1.20.0
+# -slim[openai], not the pydantic-ai meta-package: that one pulls every provider
+# extra (anthropic, bedrock, cohere, google, groq, huggingface, mistral,
+# vertexai, temporal) plus logfire, and logfire pins opentelemetry versions that
+# clash with the ones the Prefect base image already ships — `pip check` fails
+# the build on it. Everything here reaches models through the proxy over the
+# OpenAI-compatible API, so the rest was never used.
+pydantic-ai-slim[openai]==1.20.0
 boto3==1.43.53
 pydub==0.25.1
