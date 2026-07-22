@@ -56,10 +56,15 @@ def _get_client() -> OpenAI:
 
 
 def _model_name(default_model: str) -> str:
+    """Caller first, environment second.
+
+    A per-run argument has to be able to override a process-wide variable;
+    the other order makes the argument decorative.
+    """
     return (
-        os.getenv("ANALYSIS_OPENAI_MODEL")
+        default_model
+        or os.getenv("ANALYSIS_OPENAI_MODEL")
         or os.getenv("OPENAI_MODEL")
-        or default_model
         or "gpt-4o-mini"
     )
 

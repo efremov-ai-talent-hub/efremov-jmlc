@@ -9,6 +9,7 @@ from ai.reports.call_v2.scoring import (
     aggregate_chain_metrics,
     calc_manager_score_chain,
 )
+from ai.reports.shared.llm_client import resolve_model
 
 
 def _confidence_to_float(value: Any) -> float | None:
@@ -53,9 +54,7 @@ def analyse_call_v2(
     *,
     is_primary: bool = True,
 ) -> dict[str, Any]:
-    resolved_model = getattr(model, "model_name", None) or getattr(
-        cfg, "call_analysis_model", "gpt-4o-mini"
-    )
+    resolved_model = resolve_model(model, cfg)
     payload = analyze_call_transcript(
         transcript,
         model_name=str(resolved_model),
@@ -125,9 +124,7 @@ def analyse_call_in_chain(
     chain_position ascending.
     """
 
-    resolved_model = getattr(model, "model_name", None) or getattr(
-        cfg, "call_analysis_model", "gpt-4o-mini"
-    )
+    resolved_model = resolve_model(model, cfg)
 
     context_reports = _filter_context_reports(previous_reports)
     chain_context = build_chain_context_prompt(

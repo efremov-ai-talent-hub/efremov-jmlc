@@ -82,9 +82,9 @@ def resolved_model(requested: str) -> str:
     ``ANALYSIS_OPENAI_MODEL`` outranks the caller's ``--model``, so recording the requested name
     would put a model into the artefacts that never ran — a provenance defect in an eval.
     """
-    from ai.reports.shared.llm_client import resolve_model_name
+    from ai.reports.shared.llm_client import resolve_model_from_env
 
-    return resolve_model_name(requested)
+    return resolve_model_from_env(requested)
 
 
 def _analyse(version: str, transcript: str, model: str, steps: list[dict[str, Any]]):

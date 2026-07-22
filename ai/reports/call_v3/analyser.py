@@ -16,6 +16,7 @@ from typing import Any, Iterable
 from ai.reports.call_v2.prompts import build_chain_context_prompt
 from ai.reports.call_v2.scoring import aggregate_chain_metrics, calc_manager_score_chain
 from ai.reports.call_v3.core import analyze_call_transcript
+from ai.reports.shared.llm_client import resolve_model
 
 _CONFIDENCE_MAP = {"low": 0.33, "medium": 0.66, "high": 0.9}
 
@@ -99,9 +100,7 @@ def _collect_sales_qc(reports: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
 
 
 def _resolve_model(model: Any, cfg: Any) -> str:
-    return str(
-        getattr(model, "model_name", None) or getattr(cfg, "call_analysis_model", "gpt-4o-mini")
-    )
+    return resolve_model(model, cfg)
 
 
 def analyse_call_v3(

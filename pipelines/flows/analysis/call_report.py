@@ -137,6 +137,15 @@ def call_report_flow(
     logger = get_run_logger()
     if analyser_version not in ANALYSERS:
         raise ValueError(f"unknown analyser_version {analyser_version!r}, expected one of {sorted(ANALYSERS)}")
+    # Checked before any candidate is fetched: the analyser's own guard raises
+    # inside a task whose failures are carried as data, so an empty model would
+    # surface as `written: 0` rather than as a misconfiguration.
+    model = (model or "").strip()
+    if not model:
+        raise ValueError(
+            "no model to call: set ANALYSIS_CHAT_MODEL to a proxy model group "
+            "(see infra/litellm/config.yaml) or pass `model` when triggering the run"
+        )
 
     conn_cfg = trino_conn_from_config()
     engine = make_trino_engine(conn_cfg, schema=config.ANALYSIS_SCHEMA)

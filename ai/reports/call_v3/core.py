@@ -51,7 +51,7 @@ from ai.reports.call_v3.prompts import (
 )
 from ai.reports.call_v3.schema_gen import response_format
 from ai.reports.call_v3.timecodes import repair_timecodes
-from ai.reports.shared.llm_client import get_analysis_client, resolve_model_name
+from ai.reports.shared.llm_client import get_analysis_client, resolve_model
 from ai.reports.shared.transcript import has_speaker_labels, parse_segments, relabel_swapped
 from ai.reports.shared.utils import extract_json, load_agent_schema
 from ai.shared import llm_tracing
@@ -351,7 +351,7 @@ def analyze_call_transcript(
 ) -> dict[str, Any]:
     """Чистая точка входа v3: транскрипт → payload. Без Prefect и без БД."""
     client = get_analysis_client()
-    model = resolve_model_name(model_name)
+    model = resolve_model(model_name, None)
 
     # Роли определяем ДО любых вызовов модели: детектор — чистый код. Если метки
     # диаризации перепутаны, транскрипт исправляется ОДИН раз, и дальше все стадии видят

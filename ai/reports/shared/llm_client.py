@@ -8,6 +8,7 @@ llama-server / vLLM when running a self-hosted model.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from openai import OpenAI
 
@@ -37,8 +38,35 @@ def _first_env(names: tuple[str, ...]) -> str:
     return ""
 
 
-def resolve_model_name(default_model: str) -> str:
+def resolve_model_from_env(default_model: str) -> str:
+    """Environment first, argument as the fallback.
+
+    The inverse of :func:`resolve_model`, and deliberately so: the evals runner
+    documents ANALYSIS_OPENAI_MODEL as an override of whatever a run requests.
+    """
     return _first_env(_MODEL_VARS) or default_model or "gpt-4o-mini"
+
+
+def resolve_model(model: Any, cfg: Any) -> str:
+    """The model name the caller asked for.
+
+    Accepts a plain string — in this project a model is the name of a proxy model
+    group — or an object carrying ``.model_name``, or a cfg with
+    ``call_analysis_model``. The caller always wins over the environment; use
+    ``resolve_model_from_env`` where the environment should win instead.
+
+    Raises rather than substituting a default: a model nobody chose is a bug in
+    the caller, and a silent substitution sends every request under a name the
+    proxy does not serve while the run still looks configured.
+    """
+    if isinstance(model, str) and model.strip():
+        return model.strip()
+    name = getattr(model, "model_name", None) or getattr(cfg, "call_analysis_model", None)
+    if name and str(name).strip():
+        return str(name).strip()
+    raise ValueError(
+        "no model to call: pass a proxy model group name (see infra/litellm/config.yaml)"
+    )
 
 
 def get_analysis_client() -> OpenAI:
