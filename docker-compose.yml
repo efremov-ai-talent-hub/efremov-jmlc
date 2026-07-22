@@ -243,6 +243,18 @@ services:
     build:
       context: ./ai/infra/gigaam
       dockerfile: Dockerfile
+      # Build on the host network. On the deploy host, bulk transfers to
+      # download.pytorch.org stall from a container on the default 1500-MTU
+      # bridge: response headers arrive, the body times out, and pip ends up
+      # parsing an empty index ("from versions: none"). Observed, without a
+      # confirmed mechanism: the same fetch succeeds from the host and from a
+      # container on a 1400-MTU network; apt-get in this same build is fine.
+      # BuildKit accepts only `host` or `none` here — pointing this at a
+      # compose-defined lower-MTU network is rejected outright.
+      # Trade-off: build steps share the host network namespace and can reach
+      # loopback-bound services. Bounded by every dependency being version- or
+      # sha-pinned, so no unreviewed third-party code runs here.
+      network: host
     image: efremov-jmlc/gigaam:latest
     # amd64-only in practice: torchcodec (required by gigaam[longform]) ships no
     # linux-aarch64 wheel, so a native arm64 build fails at that layer. Stating it
