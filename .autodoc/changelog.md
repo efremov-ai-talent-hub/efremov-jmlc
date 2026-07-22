@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — a verification section in the README
+- What: four commands with what each one proves — Trino reaching the catalog, GigaAM transcribing through the proxy, LiteLLM forwarding an MCP call to Grafana, and that same gateway reaching a real Prometheus metric. Plus a correction: deployments are registered by the deploy now, so `make deploy-flows` is only for iterating by hand.
+- Why the distinctions are the point rather than the list: `SHOW TABLES` reads catalog metadata and never touches object storage, so it stays green while writes fail — which is exactly how a full disk presented on this host, MinIO answering 507 on writes while still serving reads. The two MCP calls look alike and do not overlap either: dashboards come from Grafana's own database, while the Prometheus query goes on through the datasource, so the first passing says nothing about the second. Both were learned the slow way here.
+- The commands are the ones that were actually run against the stand, not reconstructed from memory; their shell syntax and JSON payloads are checked.
+- Affects: `README.md`.
+- By: Efremov Mark
+
 ## 2026-07-22 — more model groups, and metrics behind the MCP
 - What: LiteLLM now carries five model groups — `gigachat-lite` / `-pro` / `-max` on the one credential, `gigachat-lightning-local` for a model served outside the stack, and `transcription-gigaam` unchanged. Prometheus scrapes `gigaam` and `litellm`, and Grafana is provisioned from `infra/observability/` with the datasource and a GigaAM ASR dashboard.
 - Why provisioned rather than configured by hand: the Grafana MCP server can only reach what Grafana knows about. A datasource clicked into one host leaves the MCP path unverifiable on the next deploy and absent on a fresh one, which defeats the reason for having the MCP server at all.
