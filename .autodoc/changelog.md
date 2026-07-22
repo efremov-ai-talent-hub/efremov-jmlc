@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-07-22 — worker image build fixed
+- Also: the `pydantic-ai` meta-package pulls pydantic-ai-slim with every provider extra plus logfire, and logfire pins opentelemetry versions that clash with the ones the Prefect base image ships — `pip check` failed the build on it, which is exactly what that line was added for. Switched to `pydantic-ai-slim[openai]`, whose base needs only `opentelemetry-api>=1.28.0`. Everything here reaches models through the proxy over the OpenAI-compatible API, so the other provider SDKs were never used.
 - What: `boto3==1.41.7` was never released — the line goes 1.41.5 then 1.42.0 — so the worker image failed to build on the first deploy that tried. Repinned to 1.43.53; all six pins are now confirmed present on the index.
 - Why worth recording: the same mistake broke the GigaAM pin a few hours earlier, and that one was checked against the upstream before it landed. This one was written from memory and not checked. A pin is a claim about the outside world, and the cost of verifying it is one request.
 - Affects: `requirements.txt`.
