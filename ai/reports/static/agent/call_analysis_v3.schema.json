@@ -1,0 +1,65 @@
+{
+  "_thinking": "string — короткое рассуждение ПЕРЕД заполнением полей (reason-first). Кто клиент, ключевые сигналы. 2-4 предложения.",
+  "summary": "string (8-12 предложений) — ТОЛЬКО факты из транскрипта; НЕ добавляй эмоции/реакции, которых не было в разговоре",
+
+  "client_type_quote": "string — дословная цитата-опора; нет опоры → '' и client_type=unknown",
+  "client_type_timecode": "string — таймкод цитаты из транскрипта (039.00 или 039.00–042.00); нет цитаты → not_specified",
+  "client_type": "investor|end_user|mixed|unknown",
+
+  "motivation_quote": "string — дословная цитата, где клиент сказал ЗАЧЕМ покупает. НЕ выводить мотив из объекта/локации; нет цитаты → ''",
+  "motivation_timecode": "string — таймкод цитаты; нет цитаты → not_specified",
+  "motivation": "price|location|quality|status|family|unknown",
+
+  "primary_goal_quote": "string — дословная цитата-опора или ''",
+  "primary_goal_timecode": "string — таймкод цитаты или not_specified",
+  "primary_goal": "life|investment|children_parents|temporary|business|unknown",
+
+  "budget_quote": "string — цитата с названной суммой/диапазоном; клиент ушёл от суммы → ''",
+  "budget_timecode": "string — таймкод цитаты или not_specified",
+  "budget_clarity": "clear|rough|unclear|unknown",
+
+  "financing_quote": "string — цитата, где КЛИЕНТ назвал способ оплаты; вопрос оператора без ответа клиента не считается",
+  "financing_timecode": "string — таймкод цитаты или not_specified",
+  "financing_type": "cash|mortgage|installments|mixed|unknown",
+
+  "urgency_quote": "string — цитата-опора или ''",
+  "urgency_timecode": "string — таймкод цитаты или not_specified",
+  "urgency": "hot|warm|cold|unknown",
+
+  "decision_role_quote": "string — цитата. Ссылается на согласование с супругом/другими → influencer/not_clear, НЕ decision_maker",
+  "decision_role_timecode": "string — таймкод цитаты или not_specified",
+  "decision_role": "decision_maker|influencer|not_clear|unknown",
+
+  "objection_style": "price_sensitive|risk_averse|comparison_shopper|trust_seeking|unknown",
+
+  "requirements": [
+    {
+      "quote": "string — дословная цитата клиента-источник",
+      "timecode": "string — таймкод цитаты из транскрипта",
+      "item": "string — что клиент хочет от объекта",
+      "category": "location|layout|view|finish|price|mortgage|parking|infrastructure|deadline|legal|service|other"
+    }
+  ],
+
+  "objections": [
+    {
+      "quote": "string — дословная цитата, где клиент ВОЗРАЗИЛ (уточняющий вопрос про цену — не возражение)",
+      "timecode": "string — таймкод цитаты из транскрипта",
+      "objection": "string — суть возражения",
+      "type": "price|location|deadline|trust|product_fit|mortgage_terms|infrastructure|competition|service|other"
+    }
+  ],
+
+  "demography_quote": "string — дословная цитата, где клиент сообщил о СЕБЕ. НЕ выводить из детей/ников/названий; нет — ''",
+  "demography_timecode": "string — таймкод цитаты или not_specified",
+  "demography_gender": "male|female|unknown",
+  "demography_has_children": "yes|no|unknown",
+  "demography_city": "string — город ПРОЖИВАНИЯ клиента (НЕ локация объекта!); нет опоры → unknown",
+
+  "deal_probability_pct": 0,
+  "confidence": "low|medium|high",
+
+  "next_step_action": "string — что дальше; не согласовано → not_specified",
+  "next_step_when": "string — когда; не названо → not_specified",
+  "next_step_channel": "call|meeting|showing|message|not_specified"
+}

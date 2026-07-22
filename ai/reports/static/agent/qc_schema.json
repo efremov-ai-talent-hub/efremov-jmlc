@@ -1,0 +1,104 @@
+{
+  "phases": {
+    "contact": "string — текст фазы приветствия и установления контакта (от начала звонка до момента, когда менеджер начал задавать вопросы о потребностях)",
+    "needs": "string — текст фазы выявления потребностей (вопросы о цели, бюджете, предпочтениях)",
+    "presentation": "string — текст фазы презентации объекта и компании (менеджер рассказывает о проекте, преимуществах, условиях)",
+    "objections": "string — текст фазы работы с возражениями (сомнения, вопросы-барьеры клиента и ответы менеджера)",
+    "closing": "string — текст фазы завершения разговора (фиксация встречи, следующих шагов, прощание)"
+  },
+  "qc_scores": {
+    "contact_greeting_standard": {
+      "score": 0,
+      "evidence": "string — цитата или описание, обосновывающее оценку"
+    },
+    "contact_name_and_object": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "contact_name_used_3plus": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "needs_purchase_goal": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "needs_key_aspects": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "needs_budget_and_payment": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "presentation_project_advantages_5plus": {
+      "count": 0,
+      "evidence": "string"
+    },
+    "presentation_developer_advantages": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "presentation_link_benefits_to_needs": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "presentation_promotions": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "presentation_related_objects": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "presentation_meeting_offer": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "objections_all_handled": {
+      "total": 0,
+      "handled": 0,
+      "evidence": "string"
+    },
+    "objections_techniques_used": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "closing_meeting_datetime_fixed": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "closing_next_actions_agreed": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "closing_contacts_collected": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "closing_questions_clarified": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "closing_farewell_standard": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "general_active_listening": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "general_polite_tone": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "general_initiative_control": {
+      "score": 0,
+      "evidence": "string"
+    },
+    "general_professional_speech": {
+      "score": 0,
+      "evidence": "string"
+    }
+  }
+}

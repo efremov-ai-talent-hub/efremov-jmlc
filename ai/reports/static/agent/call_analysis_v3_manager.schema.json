@@ -1,0 +1,36 @@
+{
+  "_thinking": "string — короткое рассуждение ПЕРЕД заполнением (reason-first): как менеджер вёл разговор. 2-4 предложения.",
+
+  "communication_style": "dominant|consultative|supportive|passive|chaotic|structured|unknown",
+  "empathy_level": "low|medium|high|unknown",
+  "confidence_level": "low|medium|high|unknown",
+  "control_style": "leads|follows|balanced|unknown",
+  "stress_behavior": "calm|overexplaining|defensive|chaotic|avoiding|unknown",
+  "decision_style": "analytical|emotional|mixed|unknown",
+  "client_orientation": "product_focused|client_focused|balanced|unknown",
+  "short_profile": "string (4-6 предложений) — психопрофиль МЕНЕДЖЕРА (продавца), позитивное и негативное. Речи менеджера мало → 'unknown'",
+
+  "top_good_phrases": [
+    {
+      "quote": "string — дословная удачная фраза МЕНЕДЖЕРА из транскрипта",
+      "timecode": "string — таймкод фразы (039.00 или 039.00–042.00)",
+      "why": "string — коротко, чем фраза хороша"
+    }
+  ],
+
+  "top_bad_phrases": [
+    {
+      "quote": "string — дословная неудачная фраза МЕНЕДЖЕРА из транскрипта",
+      "timecode": "string — таймкод фразы",
+      "why": "string — коротко, в чём проблема"
+    }
+  ],
+
+  "strengths": [
+    "string — сильная сторона менеджера, СФОРМУЛИРОВАННАЯ по переданным пройденным QC-критериям (не выдумывать новых)"
+  ],
+
+  "weaknesses": [
+    "string — слабая сторона менеджера, СФОРМУЛИРОВАННАЯ по переданным проваленным QC-критериям (не выдумывать новых)"
+  ]
+}

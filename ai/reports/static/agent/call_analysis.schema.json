@@ -1,0 +1,124 @@
+{
+  "summary": "string (10-12 sentences)",
+  "manager_strengths": [
+    "string"
+  ],
+  "manager_weaknesses": [
+    "string"
+  ],
+  "manager_score_1to10": 0,
+  "deal_probability_pct": 0,
+  "psychological_profile": {
+    "communication_style": "dominant|consultative|supportive|passive|chaotic|structured|unknown",
+    "empathy_level": "low|medium|high|unknown",
+    "confidence_level": "low|medium|high|unknown",
+    "control_style": "leads|follows|balanced|unknown",
+    "stress_behavior": "calm|overexplaining|defensive|chaotic|avoiding|unknown",
+    "decision_style": "analytical|emotional|mixed|unknown",
+    "client_orientation": "product_focused|client_focused|balanced|unknown",
+    "short_profile": "string (5-6 sentences) positive and negative aspects (It is the psychological aspects)"
+  },
+  "client_portrait": {
+    "client_type": "investor|end_user|mixed|unknown",
+    "motivation": "price|location|quality|status|family|unknown",
+    "motivation_details": {
+      "primary_goal": "life|investment|children_parents|temporary|business|unknown",
+      "reasons": [
+        {
+          "reason": "string",
+          "evidence": "string (quote/paraphrase from transcript)",
+          "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)",
+          "strength": "low|medium|high"
+        }
+      ],
+      "decision_triggers": [
+        "string"
+      ],
+      "what_success_looks_like": "string"
+    },
+    "requirements": {
+      "must_have": [
+        {
+          "item": "string",
+          "category": "location|layout|view|finish|price|mortgage|parking|infrastructure|deadline|legal|service|other",
+          "priority": 1,
+          "evidence": "string (quote/paraphrase)",
+          "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)"
+        }
+      ],
+      "nice_to_have": [
+        {
+          "item": "string",
+          "category": "location|layout|view|finish|price|mortgage|parking|infrastructure|deadline|legal|service|other",
+          "priority": 2,
+          "evidence": "string (quote/paraphrase)",
+          "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)"
+        }
+      ],
+      "deal_breakers": [
+        {
+          "item": "string",
+          "evidence": "string (quote/paraphrase)",
+          "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)",
+          "severity": "medium|high"
+        }
+      ]
+    },
+    "budget_clarity": "clear|rough|unclear|unknown",
+    "financing_type": "cash|mortgage|installments|mixed|unknown",
+    "urgency": "hot|warm|cold|unknown",
+    "decision_role": "decision_maker|influencer|not_clear|unknown",
+    "objection_style": "price_sensitive|risk_averse|comparison_shopper|trust_seeking|unknown",
+    "objections": [
+      {
+        "objection": "string",
+        "type": "price|location|deadline|trust|product_fit|mortgage_terms|infrastructure|competition|service|other",
+        "strength": "low|medium|high",
+        "root_cause": "string",
+        "evidence": "string (quote/paraphrase from transcript)",
+        "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)",
+        "how_manager_handled": "resolved|partially_resolved|not_resolved|unknown"
+      }
+    ],
+    "communication_style": "direct|polite|anxious|skeptical|friendly|unknown",
+    "short_profile": "string (9-10 sentences, who is the client, what he wants + 1 risk/constraint)",
+    "gender": "male|female|unknown",
+    "age_group": "18-24|25-34|35-44|45-54|55-64|65+|unknown",
+    "city": "string (only if explicitly mentioned, else not_specified)",
+    "district": "string (only if explicitly mentioned, else not_specified)",
+    "family_status": "single|married|divorced|unknown",
+    "has_children": "yes|no|unknown",
+    "occupation": "string (only if explicitly mentioned, else not_specified)",
+    "car_brand": "string (only if explicitly mentioned, else not_specified)",
+    "demography_confidence": "low|medium|high"
+  },
+  "next_step": {
+    "action": "string",
+    "when_text": "string",
+    "channel": "call|meeting|showing|message|not_specified"
+  },
+  "speech_metrics": {
+    "top_filler_words": [
+      {
+        "word": "string",
+        "count_est": 0
+      }
+    ],
+    "top_good_phrases": [
+      {
+        "phrase": "string",
+        "why_good": "string",
+        "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)"
+      }
+    ],
+    "top_bad_phrases": [
+      {
+        "phrase": "string",
+        "why_bad": "string",
+        "better_alternative": "string",
+        "timecode": "string (e.g. 039.00 or 039.00-042.00 from transcript)"
+      }
+    ]
+  },
+  "confidence": "low|medium|high"
+}
