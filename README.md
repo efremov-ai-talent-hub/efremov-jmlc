@@ -114,6 +114,47 @@ docker compose exec -T prefect-worker prefect deployment run 'analysis-call-repo
 docker compose exec -T prefect-worker prefect deployment run 'eval-export-dataset/eval-export'
 ```
 
+Each `deployment run` prints the flow run's UUID. Follow it with that id — ASR runs
+on CPU here, so a call takes longer than its own duration to transcribe:
+
+```bash
+RUN_ID=f7e57bf6-633b-43f7-8698-afcd3d466fab   # the UUID the trigger printed
+
+docker compose exec -T prefect-worker prefect flow-run inspect "$RUN_ID" | grep state_name
+docker compose exec -T prefect-worker prefect flow-run logs "$RUN_ID" | tail -40
+```
+
+The flow logs its own progress (`transcription candidates: 1`) because the worker
+is configured to surface the `pipelines` and `ai` loggers, not just Prefect's own.
+
+Then read the result. Summary first — a transcript is long enough to be unpleasant
+in a terminal:
+
+```bash
+docker compose exec -T trino trino --execute \
+"SELECT call_id, version, is_current, language, duration_seconds, model, length(text) AS chars
+ FROM iceberg.analysis.transcriptions ORDER BY created_at DESC"
+
+docker compose exec -T trino trino --execute \
+"SELECT text FROM iceberg.analysis.transcriptions WHERE is_current = true"
+```
+
+`analysis.llm_calls` is the journal of what was attempted, failures included — a
+failed attempt carries a null `artifact_id` but keeps its `call_id`, so it stays
+attributable. Its `request_id` is the same id LiteLLM files the call under, which
+is how a result here is traced back to the request the proxy actually sent:
+
+```bash
+docker compose exec -T trino trino --execute \
+"SELECT call_id, artifact_type, status, model, request_id, latency_ms,
+        substr(coalesce(error, ''), 1, 200) AS err
+ FROM iceberg.analysis.llm_calls ORDER BY created_at DESC"
+```
+
+A flow that finishes `Completed` while `transcriptions` stays empty means it found
+no candidates — check that seeding landed, with
+`SELECT call_id, audio_key FROM iceberg.analysis.calls`.
+
 Tear down:
 
 ```bash
