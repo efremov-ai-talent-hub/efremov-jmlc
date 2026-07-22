@@ -5,10 +5,10 @@
 | Service            | What it is                                   | Host port (default) |
 | ------------------ | -------------------------------------------- | ------------------- |
 | `minio`            | S3-compatible object store                   | API `39010`, console `39011` |
-| `minio-init`       | one-shot: creates the `warehouse` bucket     | —                   |
+| `minio-init`       | one-shot: creates the warehouse / raw-files / eval-datasets buckets | — |
 | `iceberg-postgres` | JDBC catalog DB for the Iceberg REST service | —                   |
 | `iceberg-rest`     | Iceberg REST catalog (→ MinIO)               | `38181`             |
-| `iceberg-init`     | one-shot: creates the `raw` namespace        | —                   |
+| `iceberg-migrate`  | one-shot: applies `migrations/*.sql` via Trino | —                 |
 | `trino`            | query engine — **only** the `iceberg` catalog | `38080`            |
 | `prefect`          | Prefect 3 server (UI + API), no deployments  | `34200`             |
 | `prefect-worker`   | polls the work pool; nothing deployed yet    | —                   |
@@ -46,7 +46,7 @@ Then:
 Smoke-test Trino → Iceberg once everything is healthy:
 
 ```bash
-docker compose exec trino trino --execute "SHOW SCHEMAS FROM iceberg;"
+docker compose exec trino trino --execute "SHOW TABLES FROM iceberg.analysis;"
 ```
 
 Transcribe a file through the proxy (GigaAM runs on CPU — expect it to be slower
@@ -93,4 +93,12 @@ make clean      # also delete volumes (destroys data)
 - **Apple Silicon**: the `prefect` server exits with SIGILL on linux/arm64, so the
   stack does not come up on an arm64 dev machine. The deploy target is amd64 and is
   unaffected.
+- **Data model** lives in `migrations/*.sql` and is applied through Trino by the
+  one-shot `iceberg-migrate` service on every deploy. Statements are idempotent
+  (`CREATE ... IF NOT EXISTS`); the Trino CLI exits non-zero on the first failing
+  statement, and `ci-deploy.sh` waits on the container so a failed migration fails
+  the deploy. The `DESCRIBE` pass afterwards covers the other case — a table
+  dropped or renamed out of band. Adding a column later means a
+  new numbered file with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`; a tracking
+  table only becomes necessary once a migration stops being idempotent.
 - Host ports bind to `127.0.0.1` only.

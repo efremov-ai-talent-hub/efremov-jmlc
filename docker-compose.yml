@@ -33,21 +33,30 @@ services:
       - /bin/sh
       - -c
       - |
+        set -e
         until /usr/bin/mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
           echo 'Waiting for MinIO...'
           sleep 2
         done
-        /usr/bin/mc mb --ignore-existing "local/$$MINIO_WAREHOUSE_BUCKET"
-        /usr/bin/mc mb --ignore-existing "local/$$MINIO_RAW_FILES_BUCKET"
-        /usr/bin/mc anonymous set private "local/$$MINIO_WAREHOUSE_BUCKET"
-        /usr/bin/mc anonymous set private "local/$$MINIO_RAW_FILES_BUCKET"
+        for b in "$$MINIO_WAREHOUSE_BUCKET" "$$MINIO_RAW_FILES_BUCKET" "$$MINIO_EVAL_DATASETS_BUCKET"; do
+          # An unset variable would make this `mc mb local/`, which fails — and
+          # without set -e the script would still exit 0 on the trailing echo,
+          # reporting a green deploy with a bucket missing.
+          [ -n "$$b" ] || { echo "bucket name is empty — check the MINIO_*_BUCKET vars"; exit 1; }
+          /usr/bin/mc mb --ignore-existing "local/$$b"
+          /usr/bin/mc anonymous set private "local/$$b"
+        done
         echo 'MinIO buckets are ready.'
     environment:
       <<: *common-env
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_WAREHOUSE_BUCKET: ${MINIO_WAREHOUSE_BUCKET}
-      MINIO_RAW_FILES_BUCKET: ${MINIO_RAW_FILES_BUCKET}
+      MINIO_WAREHOUSE_BUCKET: ${MINIO_WAREHOUSE_BUCKET:-warehouse}
+      MINIO_RAW_FILES_BUCKET: ${MINIO_RAW_FILES_BUCKET:-raw-files}
+      # Defaulted because ci-deploy.sh keeps an existing .env and never merges new
+      # keys into it — a var added here would otherwise interpolate to empty on
+      # every host that already has a .env.
+      MINIO_EVAL_DATASETS_BUCKET: ${MINIO_EVAL_DATASETS_BUCKET:-eval-datasets}
     networks:
       - lakehouse
 
@@ -97,22 +106,59 @@ services:
     networks:
       - lakehouse
 
-  iceberg-init:
-    image: curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
+  # Applies migrations/*.sql through Trino, in filename order. Replaces the old
+  # namespace-creating init step: the schema is now just the first statement of
+  # the first migration, so there is no special case for it.
+  #
+  # Reuses the Trino image because its CLI is already there and the image is
+  # already pulled for the server — no extra download on the deploy host.
+  #
+  # Every statement is idempotent (CREATE ... IF NOT EXISTS), so this re-runs on
+  # each deploy. The CLI exits non-zero on the first failing statement, so `set -e`
+  # is what catches a broken migration; the DESCRIBE pass afterwards catches the
+  # other case — a table dropped or renamed out of band, which no migration would
+  # notice.
+  iceberg-migrate:
+    image: trinodb/trino:444
+    platform: linux/amd64
     depends_on:
-      - iceberg-rest
-    environment:
-      <<: *common-env
+      trino:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    # Overriding entrypoint does not clear the image's HEALTHCHECK, and that check
+    # curls a Trino server this container never starts — it would sit `unhealthy`
+    # for its whole life and after exit, for no reason.
+    healthcheck:
+      disable: true
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        echo "Waiting for Iceberg REST..."
-        until curl -sf -o /dev/null http://iceberg-rest:8181/v1/config; do sleep 2; done
-        echo "Creating namespace 'raw'..."
-        curl -sf -X POST http://iceberg-rest:8181/v1/namespaces \
-          -H "Content-Type: application/json" \
-          -d '{"namespace":["raw"]}' || true
-        echo "Done."
+        set -e
+        [ -e /migrations/001_analysis.sql ] || { echo "no migrations mounted"; exit 1; }
+        # Trino reaches the REST catalog lazily, at query time, and iceberg-rest
+        # has no healthcheck to depend on — a cold start can put the first
+        # CREATE SCHEMA in front of a catalog still coming up. Wait here rather
+        # than via `restart:`, which would exit once and let `compose wait` read
+        # that first failure as the verdict.
+        echo "==> waiting for the iceberg catalog"
+        i=0
+        until trino --server trino:8080 --user migrate --execute "SHOW SCHEMAS FROM iceberg" > /dev/null 2>&1; do
+          i=$$((i + 1))
+          [ "$$i" -lt 30 ] || { echo "iceberg catalog unreachable after 30 attempts"; exit 1; }
+          sleep 3
+        done
+        for f in /migrations/*.sql; do
+          echo "==> applying $$(basename "$$f")"
+          trino --server trino:8080 --user migrate --file "$$f"
+        done
+        echo "==> verifying"
+        for t in calls transcriptions call_reports llm_calls report_inputs; do
+          trino --server trino:8080 --user migrate \
+            --execute "DESCRIBE iceberg.analysis.$$t" > /dev/null
+          echo "    ok: analysis.$$t"
+        done
+        echo "==> migrations applied"
     networks:
       - lakehouse
 
@@ -134,6 +180,16 @@ services:
       - ./infra/trino/etc:/etc/trino
     networks:
       - lakehouse
+    # The image ships a healthcheck, but its defaults allow roughly 40s before
+    # the container is declared unhealthy. Nothing depended on trino's health
+    # until iceberg-migrate did; now that something does, a JVM cold start on a
+    # host bringing up a dozen services at once would abort the whole deploy.
+    healthcheck:
+      test: ["CMD", "/usr/lib/trino/bin/health-check"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
 
   prefect:
     image: prefecthq/prefect:3.7.8-python3.12@sha256:a1a789339d6176bf4ba37e0e7658ad8a4b021e14a63912f00afcd3e8e75d1863
