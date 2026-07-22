@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-22 — worker image build fixed
+- What: `boto3==1.41.7` was never released — the line goes 1.41.5 then 1.42.0 — so the worker image failed to build on the first deploy that tried. Repinned to 1.43.53; all six pins are now confirmed present on the index.
+- Why worth recording: the same mistake broke the GigaAM pin a few hours earlier, and that one was checked against the upstream before it landed. This one was written from memory and not checked. A pin is a claim about the outside world, and the cost of verifying it is one request.
+- Affects: `requirements.txt`.
+- By: Efremov Mark
+
 ## 2026-07-22 — call processing end to end: data-access layer, flows, evals, worker
 - What: the pieces between the domain layer and the tables. `pipelines/analysis/tables/` picks candidates and writes versioned artifacts; three flows drive it — transcription, call reports per analyser, and an eval dataset export; `ai/evals` came over without the diarization half, which targets a multi-speaker stand this project does not have. The Prefect worker gets a build of its own carrying the flow code, a pinned `requirements.txt` and ffmpeg. Four deployments in `prefect.yaml`, none scheduled.
 - Why written rather than ported: the source project's data-access layer is ~2,800 lines against a different schema — polymorphic entity columns, bigint ids, a separate attempts table. The flows were followed in shape only, for the same reason: theirs read meetings and lead-manager chains, neither of which exists here.
