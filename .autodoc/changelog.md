@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — gigaam image builds on the host network
+- What: the gigaam build could not reach `download.pytorch.org` from a container on the default 1500-MTU bridge on the deploy host — response headers arrived but the body timed out, so pip parsed an empty index and the torch layer failed with `from versions: none`. `build.network: host` on the gigaam service fixes it. Observed without a confirmed mechanism: the same fetch succeeds from the host itself and from a container on a 1400-MTU network, while `apt-get` in the same build was never affected. BuildKit accepts only `host` or `none` here — pointing `build.network` at a compose-defined lower-MTU network is rejected outright, so this is the only compose-level fix short of setting a daemon-wide MTU.
+- Why: the failure looked like a bad version pin (`torch==2.10.0` "not found") but was environmental. The same command, image and specifier install fine elsewhere; only this host's container bridge fails, and only for that one route. Verified on the deploy host after the fix: the image builds with `pip check` green, contains zero `nvidia-*` packages and reports `torch 2.10.0+cpu` — confirming the CPU-wheel pinning works — and the 428 MB model download runs at full speed over the runtime bridge, so runtime needs no MTU change.
+- Trade-off recorded: build steps share the host network namespace and can reach loopback-bound services. Bounded by every dependency being version- or sha-pinned, so no unreviewed third-party code executes during the build.
+- Affects: `docker-compose.yml`.
+- By: Efremov Mark
+
 ## 2026-07-22 — self-hosted GigaAM ASR wired into LiteLLM
 - What:
   - `ai/infra/gigaam/` — an OpenAI-compatible FastAPI wrapper (`/v1/audio/transcriptions`, `/health`, `/metrics`) around the GigaAM Russian ASR model, ported from another project. New `gigaam` service builds it locally, listens on `127.0.0.1:38103`, keeps weights in the `gigaam-cache` volume and the model warm in RAM. LiteLLM gains a second model group, `transcription-gigaam`, routed at `http://gigaam:8000/v1`.
