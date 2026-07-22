@@ -1,7 +1,9 @@
 # Changelog
 
-## 2026-07-22 — reading a pipeline run's result
-- What: the README documented how to run a flow but not how to see what it produced. Adds the three places to look — the flow run's state and logs, the transcript in Iceberg, and `analysis.llm_calls` as the journal of what was attempted, failures included.
+## 2026-07-22 — the README covers choosing a model and reading a run
+- What: two gaps in the README, both about operating the stand rather than building it. Nothing said which model the analysis asks for or how to change it, and nothing said how to see what a flow run produced.
+- Choosing a model: the flows request a proxy *model group*, never a provider model id — `ANALYSIS_CHAT_MODEL` and `ANALYSIS_WHISPER_MODEL` select it, and deployments deliberately carry no model parameter, since a value there is baked in at registration and wins over `.env`. `gigachat-lightning-local` points at whatever `LOCAL_LLM_BASE_URL` names, which has to be reachable from inside the LiteLLM container — that rules out a loopback address, because `127.0.0.1` there is the container itself.
+- Reading a run: the three places to look — the flow run's state and logs, the transcript in Iceberg, and `analysis.llm_calls` as the journal of what was attempted, failures included.
 - The journal is the part worth knowing: a failed attempt writes a null `artifact_id` but keeps its `call_id`, so it stays attributable to a call, and its `request_id` is the same id the proxy files the call under — which is how a row here is traced back to the request that produced it.
 - Placeholders are a shell variable rather than `<uuid>`. Bash reads that as a redirect from a file named `uuid` followed by an output redirect with no target, so pasting the line whole yields a syntax error rather than the intended hint. Caught by checking the README's own blocks parse, not by reading them.
 - Affects: `README.md`.
