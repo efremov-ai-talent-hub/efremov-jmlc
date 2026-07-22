@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-22 — deployments register during the deploy
+- What: `prefect.yaml` is copied into the worker image, deployment registration moved from a manual `make deploy-flows` into `ci-deploy.sh`, and `MINIO_EVAL_DATASETS_BUCKET` gained the compose-level default the worker was missing.
+- Why together: they were one failure wearing three faces. The image carried the flows but not the config `prefect deploy` reads, so registration found nothing; registration was a step a human had to remember; and the bucket name reached the worker as an empty string. The result was a stand that deployed green while having nothing runnable on it — `prefect deployment ls` returned an empty table on a host whose deploy had just reported success.
+- The registration step follows the same rules as the migration step next to it: bounded by `timeout`, fatal on a non-zero exit, logs dumped on failure. `prefect deploy` is idempotent, so running it on every deploy is the point rather than a cost — a fresh host has to come up runnable, not merely built.
+- The empty bucket name is the `.env` drift already recorded twice: `ci-deploy.sh` keeps an existing `.env` and never merges new keys, so any variable added later is unset on exactly the hosts that already work. `minio-init` had picked up a default when that was written; the worker, added afterwards, had not. Compose-level defaults are the only thing that makes a new variable safe on an old host.
+- Verified before pushing: the worker is healthy on the new image and all three flow modules import inside the container, which is what a missing dependency would break. Nothing has been run yet — `analysis.calls` is still empty, so no flow has anything to pick up.
+- Affects: `infra/images/Dockerfile.prefect-worker`, `infra/github-runner/ci-deploy.sh`, `docker-compose.yml`.
+- By: Efremov Mark
+
 ## 2026-07-22 — worker image build fixed
 - Also: the `pydantic-ai` meta-package pulls pydantic-ai-slim with every provider extra plus logfire, and logfire pins opentelemetry versions that clash with the ones the Prefect base image ships — `pip check` failed the build on it, which is exactly what that line was added for. Switched to `pydantic-ai-slim[openai]`, whose base needs only `opentelemetry-api>=1.28.0`. Everything here reaches models through the proxy over the OpenAI-compatible API, so the other provider SDKs were never used.
 - What: `boto3==1.41.7` was never released — the line goes 1.41.5 then 1.42.0 — so the worker image failed to build on the first deploy that tried. Repinned to 1.43.53; all six pins are now confirmed present on the index.
