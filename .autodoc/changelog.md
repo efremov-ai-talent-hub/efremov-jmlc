@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — reading a pipeline run's result
+- What: the README documented how to run a flow but not how to see what it produced. Adds the three places to look — the flow run's state and logs, the transcript in Iceberg, and `analysis.llm_calls` as the journal of what was attempted, failures included.
+- The journal is the part worth knowing: a failed attempt writes a null `artifact_id` but keeps its `call_id`, so it stays attributable to a call, and its `request_id` is the same id the proxy files the call under — which is how a row here is traced back to the request that produced it.
+- Placeholders are a shell variable rather than `<uuid>`. Bash reads that as a redirect from a file named `uuid` followed by an output redirect with no target, so pasting the line whole yields a syntax error rather than the intended hint. Caught by checking the README's own blocks parse, not by reading them.
+- Affects: `README.md`.
+- By: Efremov Mark
+
 ## 2026-07-22 — a verification section in the README
 - What: four commands with what each one proves — Trino reaching the catalog, GigaAM transcribing through the proxy, LiteLLM forwarding an MCP call to Grafana, and that same gateway reaching a real Prometheus metric. Plus a correction: deployments are registered by the deploy now, so `make deploy-flows` is only for iterating by hand.
 - Why the distinctions are the point rather than the list: `SHOW TABLES` reads catalog metadata and never touches object storage, so it stays green while writes fail — which is exactly how a full disk presented on this host, MinIO answering 507 on writes while still serving reads. The two MCP calls look alike and do not overlap either: dashboards come from Grafana's own database, while the Prometheus query goes on through the datasource, so the first passing says nothing about the second. Both were learned the slow way here.
