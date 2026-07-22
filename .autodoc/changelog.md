@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-22 — self-hosted GigaAM ASR wired into LiteLLM
+- What:
+  - `ai/infra/gigaam/` — an OpenAI-compatible FastAPI wrapper (`/v1/audio/transcriptions`, `/health`, `/metrics`) around the GigaAM Russian ASR model, ported from another project. New `gigaam` service builds it locally, listens on `127.0.0.1:38103`, keeps weights in the `gigaam-cache` volume and the model warm in RAM. LiteLLM gains a second model group, `transcription-gigaam`, routed at `http://gigaam:8000/v1`.
+  - `ai/infra/gigaam/trials/` — the standalone stand that chose this model, carried over for provenance. Renamed from its original `bench` naming throughout (directory, files, its own compose services). It has its own compose file, is not part of the root stack, and is excluded from the production build context by a new `.dockerignore`.
+  - Every pip dependency in the image is pinned. Notably `torch==2.10.0` / `torchaudio==2.10.0` from the CPU wheel index: unpinned, the first layer installed the newest CPU build (2.13) and the gigaam install then had to satisfy its own `torch==2.10.*` from PyPI, whose linux wheel is the CUDA variant — pulling the whole `nvidia-*` stack and quietly defeating the "CPU-only" intent. GigaAM itself is pinned to commit `559d88d6`, since it publishes no PyPI release carrying v3.
+  - `GIGAAM_MASTER_KEY` defaults to a non-secret placeholder rather than an empty string. LiteLLM treats a falsy api_key as unset and falls back to `OPENAI_API_KEY`, which this project does not define, so an empty value made every transcription fail inside the proxy before reaching the wrapper. The wrapper performs no auth of its own.
+- Why: transcription is the first real workload for this stand, and a local ASR removes the dependency on a paid speech API. The bug above is the shape to watch for when porting: the code was copied verbatim and worked at the source, because there it leaned on an `OPENAI_API_KEY` that exists there and not here.
+- Affects: `ai/infra/gigaam/`, `docker-compose.yml`, `infra/litellm/config.yaml`, `.env.example`, `README.md`.
+- By: Efremov Mark
+
 ## 2026-07-22 — fix wrong-arch postgres digest that broke the first real deploy
 - What: the three Postgres services pinned `postgres:15.14-alpine@sha256:2e50ad40…`, which is the **arm64 platform manifest**, not the multi-arch index — the digest was read from `docker inspect RepoDigests` on an arm64 dev machine. On the amd64 runner all three containers crashed on start (exec format error) and went unhealthy within ~0.5s, so every dependent (iceberg-rest, trino, litellm) refused to start and the deploy failed. Re-pinned to the OCI index digest `sha256:64583b3c…` (contains linux/amd64). The other seven pinned images were already correct index/list digests (verified each carries linux/amd64).
 - Why: `RepoDigests` returns the platform-specific digest for OCI-index images, so digests captured on one arch silently break another. Manifest-list/index digests are the portable ones — read them from `docker buildx imagetools inspect <ref> --format '{{.Manifest.Digest}}'`, not from a local `docker inspect`.
