@@ -20,6 +20,10 @@ RUN pip check
 
 COPY pipelines/ /app/pipelines/
 COPY ai/ /app/ai/
+# `prefect deploy` reads this from the working directory. Without it the image
+# carries the flows but nothing can register them, so the stand comes up with
+# code it cannot run.
+COPY prefect.yaml /app/prefect.yaml
 
 WORKDIR /app
 ENV PYTHONPATH=/app

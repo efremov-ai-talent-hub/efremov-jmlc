@@ -64,4 +64,23 @@ if [ "$rc" -ne 0 ]; then
 fi
 echo "migrations ok"
 
+# Registering deployments belongs to the deploy, not to a human afterwards:
+# without it a host comes up carrying the flow code with nothing runnable
+# against it — green deploy, unusable stand. `prefect deploy` is idempotent, so
+# re-running it every time is the point.
+#
+# Bounded and non-zero-fatal for the same reasons as the migration wait above.
+echo "==> deployments"
+rc=0
+timeout -k 30 300 docker compose exec -T prefect-worker prefect deploy --all || rc=$?
+if [ "$rc" -ne 0 ]; then
+  case "$rc" in
+    124 | 137) echo "!! deployment registration timed out after 300s" ;;
+    *) echo "!! deployment registration failed (exit $rc)" ;;
+  esac
+  timeout 60 docker compose logs --no-log-prefix prefect-worker 2>&1 | tail -30 || true
+  exit 1
+fi
+echo "deployments ok"
+
 echo "==> deploy OK (${REF})"

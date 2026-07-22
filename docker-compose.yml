@@ -282,7 +282,10 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_RAW_FILES_BUCKET: ${MINIO_RAW_FILES_BUCKET}
-      MINIO_EVAL_DATASETS_BUCKET: ${MINIO_EVAL_DATASETS_BUCKET}
+      # Same default as minio-init above. ci-deploy.sh keeps an existing .env and
+      # never merges new keys into it, so a variable added later is unset on
+      # exactly the hosts that already work — here it silently became "".
+      MINIO_EVAL_DATASETS_BUCKET: ${MINIO_EVAL_DATASETS_BUCKET:-eval-datasets}
       # The domain layer reaches models through the proxy, never a provider directly.
       OPENAI_API_BASE_URL: http://litellm:4000
       OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
