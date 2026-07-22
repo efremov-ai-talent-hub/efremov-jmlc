@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-22 — seeding calls closes the chain
+- What: `make seed` uploads `seeds/audio/*` to the raw-files bucket and records one row per file in `analysis.calls`. It runs in the worker, which already carries boto3, pydub and the pipelines package and can reach both MinIO and Trino; `./seeds` is mounted read-only rather than baked into the image. Until now the tables existed but held nothing, so every deployment had nothing to pick up — the last missing link between a stack that deploys and one that does anything.
+- Idempotent because it will be re-run. The file stem is the `call_id`, so the same file always seeds the same call: minting fresh ids would orphan the transcripts and reports already produced for those calls while leaving the old rows to be processed again. Rows are checked for before insert — Iceberg has no unique constraint, and a duplicate `call_id` is silently multiplied by every downstream join. Objects are re-uploaded unconditionally so a row whose object went missing repairs itself rather than becoming a call the transcription flow retries and fails on forever.
+- Two small honesty choices: `duration_seconds` is read from the file rather than guessed, best-effort — a file pydub cannot open still seeds with NULL, since the column is informational and failing the whole seed over one bad file is the wrong trade. `started_at` is the file's mtime rather than `now()`, because stamping every recording with the moment it was seeded puts them all at one instant and makes `ORDER BY started_at` meaningless.
+- `seeds/audio/` contents are gitignored. Recordings of real sales calls are personal data — voices, names, phone numbers — and git history is permanent, including in any copy of the repository shared later.
+- Affects: `pipelines/seed_calls.py`, `pipelines/analysis/tables/writer.py`, `seeds/`, `docker-compose.yml`, `Makefile`, `.gitignore`.
+- By: Efremov Mark
+
 ## 2026-07-22 — deployments register during the deploy
 - What: `prefect.yaml` is copied into the worker image, deployment registration moved from a manual `make deploy-flows` into `ci-deploy.sh`, and `MINIO_EVAL_DATASETS_BUCKET` gained the compose-level default the worker was missing.
 - Why together: they were one failure wearing three faces. The image carried the flows but not the config `prefect deploy` reads, so registration found nothing; registration was a step a human had to remember; and the bucket name reached the worker as an empty string. The result was a stand that deployed green while having nothing runnable on it — `prefect deployment ls` returned an empty table on a host whose deploy had just reported success.
