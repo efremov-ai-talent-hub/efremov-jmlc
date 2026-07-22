@@ -11,7 +11,7 @@
 | `iceberg-migrate`  | one-shot: applies `migrations/*.sql` via Trino | —                 |
 | `trino`            | query engine — **only** the `iceberg` catalog | `38080`            |
 | `prefect`          | Prefect 3 server (UI + API), no deployments  | `34200`             |
-| `prefect-worker`   | polls the work pool; nothing deployed yet    | —                   |
+| `prefect-worker`   | runs the flows; built with the pipeline code | —                   |
 | `prefect-postgres` | Prefect's backing DB                         | —                   |
 | `litellm`          | patched LiteLLM proxy (LLM + ASR routing)    | `34000`             |
 | `litellm-db`       | LiteLLM's backing DB                         | —                   |
@@ -49,8 +49,17 @@ Smoke-test Trino → Iceberg once everything is healthy:
 docker compose exec trino trino --execute "SHOW TABLES FROM iceberg.analysis;"
 ```
 
-Transcribe a file through the proxy (GigaAM runs on CPU — expect it to be slower
-than realtime, and the first call after a fresh start waits on the model load):
+Run the pipeline once the flows are registered — seed a call row, then trigger:
+
+```bash
+make deploy-flows
+docker compose exec -T prefect-worker prefect deployment run 'analysis-transcription/transcription'
+docker compose exec -T prefect-worker prefect deployment run 'analysis-call-report/call-report-v3'
+docker compose exec -T prefect-worker prefect deployment run 'eval-export-dataset/eval-export'
+```
+
+Transcribe a file through the proxy directly (GigaAM runs on CPU — expect it to be
+slower than realtime, and the first call after a fresh start waits on the model load):
 
 ```bash
 curl -s http://localhost:34000/v1/audio/transcriptions \
@@ -83,9 +92,11 @@ make clean      # also delete volumes (destroys data)
   `ai/infra/gigaam/trials/` is the standalone experiment stand that picked this
   model; it has its own compose file and is not part of this stack.
 - **Prefect** runs a server plus a worker on the pool named by `PREFECT_WORK_POOL`,
-  created on first worker start. Nothing is deployed to it yet, so the worker just
-  polls an empty pool; it uses the stock Prefect image and will need a build of its
-  own once flows arrive with their dependencies. The UI and API require the
+  created on first worker start. Flows live in `pipelines/flows/`; register them
+  with `make deploy-flows`, which runs `prefect deploy` inside the worker because
+  that is where the code and its dependencies are installed. Deployments carry no
+  schedule on purpose — every run costs LLM calls, and a stand that spends money
+  on a timer is worse than one you trigger. The UI and API require the
   credentials in `PREFECT_SERVER_API_AUTH_STRING` — which must not be blank: an
   empty value switches the server's auth on while leaving the client unable to
   authenticate, and `GET /api/health` stays exempt, so the container still looks

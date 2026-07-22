@@ -239,7 +239,15 @@ services:
   # that is the point to give it a build of its own, plus a stop_grace_period so
   # in-flight runs get longer than Docker's default 10s to cancel.
   prefect-worker:
-    image: prefecthq/prefect:3.7.8-python3.12@sha256:a1a789339d6176bf4ba37e0e7658ad8a4b021e14a63912f00afcd3e8e75d1863
+    # Carries the flow code and its dependencies, so it needs a build of its own
+    # rather than the stock image the empty pool was fine with.
+    build:
+      context: .
+      dockerfile: infra/images/Dockerfile.prefect-worker
+      # Same reason as gigaam: bulk transfers stall from a container on the
+      # default bridge on the deploy host.
+      network: host
+    image: efremov-jmlc/prefect-worker:latest
     restart: unless-stopped
     depends_on:
       prefect:
@@ -264,6 +272,22 @@ services:
       PREFECT_API_URL: http://prefect:4200/api
       # Client-side counterpart of the server's PREFECT_SERVER_API_AUTH_STRING.
       PREFECT_API_AUTH_STRING: ${PREFECT_SERVER_API_AUTH_STRING:-}
+      PREFECT_LOGGING_EXTRA_LOGGERS: pipelines,ai
+      TRINO_HOST: trino
+      TRINO_PORT: "8080"
+      TRINO_USER: ${TRINO_USER:-pipelines}
+      TRINO_CATALOG: iceberg
+      ANALYSIS_SCHEMA: analysis
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_RAW_FILES_BUCKET: ${MINIO_RAW_FILES_BUCKET}
+      MINIO_EVAL_DATASETS_BUCKET: ${MINIO_EVAL_DATASETS_BUCKET}
+      # The domain layer reaches models through the proxy, never a provider directly.
+      OPENAI_API_BASE_URL: http://litellm:4000
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
+      SELLER_BRAND: ${SELLER_BRAND:-Девелопер}
+      SELLER_PROJECTS: ${SELLER_PROJECTS:-}
     networks:
       - lakehouse
     # The worker exits on an unreachable API instead of retrying, and depends_on

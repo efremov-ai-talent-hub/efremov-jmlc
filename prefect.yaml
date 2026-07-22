@@ -1,0 +1,45 @@
+# Prefect deployments for this stack.
+#
+# Applied from inside the worker container (`make deploy-flows`), because that is
+# where the flow code and its dependencies live — running `prefect deploy` from
+# the host would import flows whose libraries are not installed there.
+#
+# No schedules. Every flow costs LLM calls per run, and a stand that quietly
+# spends money on a timer is worse than one you have to trigger. Add a schedule
+# when there is a reason to.
+name: efremov-jmlc
+prefect-version: 3.7.8
+
+deployments:
+  - name: transcription
+    entrypoint: pipelines/flows/analysis/transcription.py:transcription_flow
+    description: Transcribe calls that have audio but no current transcript.
+    work_pool:
+      name: default-pool
+    parameters:
+      whisper_model: transcription-gigaam
+      chat_model: gigachat-lite
+
+  - name: call-report-v3
+    entrypoint: pipelines/flows/analysis/call_report.py:call_report_flow
+    description: Analyse current transcripts with the v3 analyser.
+    work_pool:
+      name: default-pool
+    parameters:
+      analyser_version: v3
+
+  - name: call-report-v2
+    entrypoint: pipelines/flows/analysis/call_report.py:call_report_flow
+    description: Analyse current transcripts with the v2 analyser.
+    work_pool:
+      name: default-pool
+    parameters:
+      analyser_version: v2
+
+  - name: eval-export
+    entrypoint: pipelines/flows/eval_export.py:eval_export_flow
+    description: Publish a transcript/report dataset to the eval-datasets bucket.
+    work_pool:
+      name: default-pool
+    parameters:
+      analyser_version: v3

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
 
-.PHONY: help env up down stop status logs build ps clean
+.PHONY: help env up down stop status logs build ps clean deploy-flows
 
 help:
 	@echo "Targets:"
@@ -12,6 +12,7 @@ help:
 	@echo "  make status   - show container status"
 	@echo "  make logs     - tail logs (all services)"
 	@echo "  make clean    - down + remove named volumes (DESTROYS DATA)"
+	@echo "  make deploy-flows - register Prefect deployments (runs in the worker)"
 
 env:
 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")
@@ -36,3 +37,7 @@ logs:
 
 clean:
 	$(COMPOSE) down -v
+# Registered from inside the worker: that is where the flow code and its
+# dependencies are installed.
+deploy-flows:
+	$(COMPOSE) exec -T prefect-worker prefect deploy --all

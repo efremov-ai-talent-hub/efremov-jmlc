@@ -1,0 +1,9 @@
+.git/
+.autodoc/
+docs/
+migrations/
+infra/litellm/
+ai/infra/
+**/__pycache__/
+**/*.pyc
+.env

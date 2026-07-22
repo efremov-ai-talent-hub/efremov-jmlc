@@ -1,0 +1,25 @@
+# Prefect worker carrying the flow code and its dependencies.
+#
+# The stock image was enough while nothing was deployed; a worker that actually
+# runs these flows needs the pipelines/ai packages on PYTHONPATH plus the
+# libraries in requirements.txt.
+FROM prefecthq/prefect:3.7.8-python3.12@sha256:a1a789339d6176bf4ba37e0e7658ad8a4b021e14a63912f00afcd3e8e75d1863
+
+# ffmpeg is not a pip dependency: pydub shells out to it to read and slice audio,
+# and without the binary transcription fails at the first chunk rather than at
+# import time.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+# Fail the build rather than ship a broken dependency graph.
+RUN pip check
+
+COPY pipelines/ /app/pipelines/
+COPY ai/ /app/ai/
+
+WORKDIR /app
+ENV PYTHONPATH=/app
