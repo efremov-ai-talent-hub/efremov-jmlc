@@ -148,6 +148,18 @@ make clean      # also delete volumes (destroys data)
   empty value switches the server's auth on while leaving the client unable to
   authenticate, and `GET /api/health` stays exempt, so the container still looks
   healthy while every real call gets 401.
+- **Choosing a model.** The flows ask the proxy for a *model group*, never a
+  provider model id: `ANALYSIS_CHAT_MODEL` for analysis and `ANALYSIS_WHISPER_MODEL`
+  for speech, both in `.env`. Deployments deliberately carry no model parameter —
+  a value there would be baked in at registration and would win over `.env` — so
+  changing the variable and restarting the worker is the whole procedure.
+  `gigachat-lite` / `-pro` / `-max` share one credential; `gigachat-lightning-local`
+  points at whatever `LOCAL_LLM_BASE_URL` names, for running the analysis against a
+  model of your own. That address has to be reachable **from inside the LiteLLM
+  container**, which rules out a loopback one — `127.0.0.1` there is the container
+  itself. A model served on the deploy host is reached at `host.docker.internal`,
+  which the service maps to the host gateway (Docker Desktop provides that name on
+  its own; Linux does not).
 - **Apple Silicon**: the `prefect` server exits with SIGILL on linux/arm64, so the
   stack does not come up on an arm64 dev machine. The deploy target is amd64 and is
   unaffected.
