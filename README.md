@@ -38,7 +38,7 @@ Then:
 - MinIO console — http://localhost:39011  (user `minio` / pass `minio123`)
 - Iceberg REST config — http://localhost:38181/v1/config
 - Trino UI — http://localhost:38080  (user: any, e.g. `dbt`)
-- Prefect UI — http://localhost:34200
+- Prefect UI — http://localhost:34200  (credentials from `PREFECT_SERVER_API_AUTH_STRING`)
 - Grafana — http://localhost:33000  (user `admin` / pass `admin`)
 - LiteLLM — http://localhost:34000/health (set `LITELLM_GIGACHAT_CREDENTIALS`
   in `.env` for `gigachat-lite` to actually route completions)
@@ -85,7 +85,11 @@ make clean      # also delete volumes (destroys data)
 - **Prefect** runs a server plus a worker on the pool named by `PREFECT_WORK_POOL`,
   created on first worker start. Nothing is deployed to it yet, so the worker just
   polls an empty pool; it uses the stock Prefect image and will need a build of its
-  own once flows arrive with their dependencies.
+  own once flows arrive with their dependencies. The UI and API require the
+  credentials in `PREFECT_SERVER_API_AUTH_STRING` — which must not be blank: an
+  empty value switches the server's auth on while leaving the client unable to
+  authenticate, and `GET /api/health` stays exempt, so the container still looks
+  healthy while every real call gets 401.
 - **Apple Silicon**: the `prefect` server exits with SIGILL on linux/arm64, so the
   stack does not come up on an arm64 dev machine. The deploy target is amd64 and is
   unaffected.
