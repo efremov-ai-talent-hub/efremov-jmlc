@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-22 — the blind judge rubric is written down
+- What: `docs/claudeops/judge-prompt.md` records, verbatim, the rubric used to grade extraction quality — three independent Claude subagents per call, each blind to which model produced the report, plus the batch wrapper and the structured output schema they return.
+- Why it sits in claudeops rather than with the evals: it is another use of subagents in this project's process, alongside the reviewer and the changelog maintainer. A separate file rather than inline, because the claudeops README is deliberately short and a prompt this long would bury the two lines that matter there.
+- The enum reference inside the rubric was checked against `ai/reports/static/agent/call_analysis.schema.json` rather than taken on trust — all nine value sets match, so the rubric grades the report this repository actually produces and not one from elsewhere.
+- The rubric's non-obvious choices are recorded next to it: a speech act ("the client said he is taking a mortgage") is verifiable while the world fact behind it is not; unsupported claims default to NOT_SUPPORTED so uncertainty does not resolve in the graded model's favour; the judge is blind so comparisons measure quality rather than reputation; and speaker polarity is judged by meaning, because the `[МЕНЕДЖЕР]`/`[КЛИЕНТ]` labels in a stereo transcript are themselves sometimes wrong.
+- Affects: `docs/claudeops/`.
+- By: Efremov Mark
+
 ## 2026-07-22 — the README covers choosing a model and reading a run
 - What: two gaps in the README, both about operating the stand rather than building it. Nothing said which model the analysis asks for or how to change it, and nothing said how to see what a flow run produced.
 - Choosing a model: the flows request a proxy *model group*, never a provider model id — `ANALYSIS_CHAT_MODEL` and `ANALYSIS_WHISPER_MODEL` select it, and deployments deliberately carry no model parameter, since a value there is baked in at registration and wins over `.env`. `gigachat-lightning-local` points at whatever `LOCAL_LLM_BASE_URL` names, which has to be reachable from inside the LiteLLM container — that rules out a loopback address, because `127.0.0.1` there is the container itself.
